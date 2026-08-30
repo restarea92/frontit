@@ -151,8 +151,77 @@ test('notifies subscribers only when public state changes', () => {
       isTouching: true,
       isScrolling: false,
       isTouchScrolling: false,
+      isTouchMomentum: false,
     },
   ])
+
+  state.destroy()
+})
+
+test('reports touch momentum once the finger is up', () => {
+  const target = createScrollEndTarget()
+  const state = createScrollState({ target })
+
+  target.dispatchEvent(createTouchEvent('touchstart', 1))
+  target.dispatchEvent(new Event('scroll'))
+
+  assert.equal(state.isTouchScrolling, true)
+  assert.equal(state.isTouchMomentum, false)
+
+  target.dispatchEvent(createTouchEvent('touchend', 0))
+
+  assert.equal(state.isTouchMomentum, true)
+
+  target.dispatchEvent(new Event('scrollend'))
+
+  assert.equal(state.isTouchMomentum, false)
+
+  state.destroy()
+})
+
+test('does not report momentum for a scroll that never involved touch', () => {
+  const target = createScrollEndTarget()
+  const state = createScrollState({ target })
+
+  target.dispatchEvent(new Event('scroll'))
+
+  assert.equal(state.isScrolling, true)
+  assert.equal(state.isTouchMomentum, false)
+
+  state.destroy()
+})
+
+test('keeps the snapshot reference stable until a value changes', () => {
+  const target = new EventTarget()
+  const state = createScrollState({ target })
+  const initial = state.getSnapshot()
+
+  assert.equal(state.getSnapshot(), initial)
+
+  target.dispatchEvent(createTouchEvent('touchstart', 1))
+
+  const afterTouch = state.getSnapshot()
+
+  assert.notEqual(afterTouch, initial)
+  assert.equal(state.getSnapshot(), afterTouch)
+
+  target.dispatchEvent(createTouchEvent('touchstart', 1))
+
+  assert.equal(state.getSnapshot(), afterTouch)
+
+  state.destroy()
+})
+
+test('delivers the same object to subscribers that getSnapshot returns', () => {
+  const target = new EventTarget()
+  const state = createScrollState({ target })
+  const changes = []
+
+  state.subscribe((snapshot) => changes.push(snapshot))
+  target.dispatchEvent(createTouchEvent('touchstart', 1))
+
+  assert.equal(changes.length, 1)
+  assert.equal(changes[0], state.getSnapshot())
 
   state.destroy()
 })

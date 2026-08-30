@@ -1,7 +1,18 @@
 export interface ScrollStateSnapshot {
+  /** A finger is on the screen. */
   readonly isTouching: boolean
+  /** The target is scrolling, by any input. */
   readonly isScrolling: boolean
+  /** The scroll was started by touch, and stays true through the momentum that follows. */
   readonly isTouchScrolling: boolean
+  /**
+   * A touch scroll is coasting: the finger is up and the scroll has not settled.
+   *
+   * Inferred from the two states above, since browsers do not report momentum. A
+   * programmatic scroll starting in the same window reads as momentum too. Momentum
+   * from a trackpad is not covered, which is what the name is narrow about.
+   */
+  readonly isTouchMomentum: boolean
 }
 
 export type ScrollStateListener = (state: ScrollStateSnapshot) => void
@@ -18,6 +29,11 @@ export interface ScrollState extends ScrollStateSnapshot {
    * snapshot values actually changes. Returns a function that removes the listener.
    */
   subscribe(listener: ScrollStateListener): () => void
+  /**
+   * Returns the current values as one object. The same reference is returned until a
+   * value changes, which is what `useSyncExternalStore` requires of a snapshot.
+   */
+  getSnapshot(): ScrollStateSnapshot
   /** Removes the event listeners and pending timers. Subscribing afterwards is a no-op. */
   destroy(): void
 }
@@ -57,18 +73,23 @@ export const createScrollState = (
   let touchTimeout: number | undefined
   let destroyed = false
 
-  const snapshot = (): ScrollStateSnapshot => ({
+  const buildSnapshot = (): ScrollStateSnapshot => ({
     isTouching,
     isScrolling,
     isTouchScrolling,
+    isTouchMomentum: isTouchScrolling && !isTouching,
   })
 
-  const notify = () => {
-    const state = snapshot()
-    listeners.forEach((listener) => listener(state))
-  }
+  let snapshot = buildSnapshot()
 
-  const update = (nextState: Partial<ScrollStateSnapshot>) => {
+  const update = (
+    nextState: Partial<
+      Pick<
+        ScrollStateSnapshot,
+        'isTouching' | 'isScrolling' | 'isTouchScrolling'
+      >
+    >,
+  ) => {
     if (destroyed) {
       return
     }
@@ -89,7 +110,8 @@ export const createScrollState = (
     isTouching = nextIsTouching
     isScrolling = nextIsScrolling
     isTouchScrolling = nextIsTouchScrolling
-    notify()
+    snapshot = buildSnapshot()
+    listeners.forEach((listener) => listener(snapshot))
   }
 
   const clearScrollTimeout = () => {
@@ -184,6 +206,12 @@ export const createScrollState = (
     get isTouchScrolling() {
       return isTouchScrolling
     },
+    get isTouchMomentum() {
+      return snapshot.isTouchMomentum
+    },
+    getSnapshot() {
+      return snapshot
+    },
     subscribe(listener) {
       if (destroyed) {
         return () => undefined
@@ -208,6 +236,7 @@ export const createScrollState = (
       isScrolling = false
       isTouchScrolling = false
       touchSequenceActive = false
+      snapshot = buildSnapshot()
       target?.removeEventListener('touchstart', handleTouchStart)
       target?.removeEventListener('touchend', handleTouchEnd)
       target?.removeEventListener('touchcancel', handleTouchEnd)
