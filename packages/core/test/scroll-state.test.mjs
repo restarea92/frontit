@@ -65,6 +65,24 @@ test('tracks non-touch scrolling separately', async () => {
   assert.equal(state.isScrolling, false)
 })
 
+test('does not deliver the current state to a new subscriber', () => {
+  const target = new EventTarget()
+  const state = createScrollState({ target })
+  const changes = []
+
+  target.dispatchEvent(createTouchEvent('touchstart', 1))
+  state.subscribe((snapshot) => changes.push(snapshot))
+
+  assert.equal(state.isTouching, true)
+  assert.deepEqual(changes, [])
+
+  target.dispatchEvent(createTouchEvent('touchend', 0))
+
+  assert.equal(changes.length, 1)
+
+  state.destroy()
+})
+
 test('notifies subscribers only when public state changes', () => {
   const target = new EventTarget()
   const state = createScrollState({ target })

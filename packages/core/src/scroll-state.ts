@@ -12,7 +12,13 @@ export interface ScrollStateOptions {
 }
 
 export interface ScrollState extends ScrollStateSnapshot {
+  /**
+   * Registers a listener for subsequent changes. It is not called with the state as it
+   * stands, which is readable from the instance itself, and it runs only when one of the
+   * snapshot values actually changes. Returns a function that removes the listener.
+   */
   subscribe(listener: ScrollStateListener): () => void
+  /** Removes the event listeners and pending timers. Subscribing afterwards is a no-op. */
   destroy(): void
 }
 
