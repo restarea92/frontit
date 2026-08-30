@@ -1,7 +1,7 @@
-export { createScrollState } from './scroll/index.js'
+export { createScrollState } from './scroll-state.js'
 export type {
   ScrollState,
   ScrollStateListener,
   ScrollStateOptions,
   ScrollStateSnapshot,
-} from './scroll/index.js'
+} from './scroll-state.js'
