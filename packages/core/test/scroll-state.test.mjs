@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { createScrollState } from '../dist/scroll/index.js'
+import { createScrollState } from '../dist/index.js'
 
 const wait = (duration) =>
   new Promise((resolve) => globalThis.setTimeout(resolve, duration))

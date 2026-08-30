@@ -3,7 +3,7 @@
 Frontit is a frontend toolkit for reusable browser primitives and utilities.
 
 ```ts
-import { createScrollState } from '@frontit/core/scroll'
+import { createScrollState } from 'frontit'
 
 const scroll = createScrollState()
 

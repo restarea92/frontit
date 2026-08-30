@@ -3,7 +3,7 @@
 Low-level browser primitives and utilities for frontend development.
 
 ```ts
-import { createScrollState } from '@frontit/core/scroll'
+import { createScrollState } from '@frontit/core'
 
 const scroll = createScrollState()
 
