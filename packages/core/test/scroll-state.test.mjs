@@ -86,18 +86,35 @@ test('ends the scroll on scrollend when the target supports it', () => {
   state.destroy()
 })
 
-test('keeps scrolling past the idle delay until scrollend arrives', async () => {
+test('stops scrolling while a resting finger holds the touch scroll open', async () => {
   const target = createScrollEndTarget()
   const state = createScrollState({ target, idleDelay: 10 })
 
+  target.dispatchEvent(createTouchEvent('touchstart', 1))
+  target.dispatchEvent(new Event('scroll'))
+
+  assert.equal(state.isScrolling, true)
+  assert.equal(state.isTouchScrolling, true)
+
+  await wait(25)
+
+  assert.equal(state.isScrolling, false)
+  assert.equal(state.isTouchScrolling, true)
+  assert.equal(state.isTouchMomentum, false)
+
+  state.destroy()
+})
+
+test('keeps the touch scroll open past the idle delay without scrollend', async () => {
+  const target = new EventTarget()
+  const state = createScrollState({ target, idleDelay: 10 })
+
+  target.dispatchEvent(createTouchEvent('touchstart', 1))
   target.dispatchEvent(new Event('scroll'))
   await wait(25)
 
-  assert.equal(state.isScrolling, true)
-
-  target.dispatchEvent(new Event('scrollend'))
-
   assert.equal(state.isScrolling, false)
+  assert.equal(state.isTouchScrolling, true)
 
   state.destroy()
 })

@@ -1,9 +1,13 @@
 export interface ScrollStateSnapshot {
   /** A finger is on the screen. */
   readonly isTouching: boolean
-  /** The target is scrolling, by any input. */
+  /** The target is moving, by any input. A finger resting mid-scroll makes this false. */
   readonly isScrolling: boolean
-  /** The scroll was started by touch, and stays true through the momentum that follows. */
+  /**
+   * A touch-driven scroll gesture is open. It covers the whole gesture, including a
+   * finger held still and the momentum after it lifts, so it stays true across pauses
+   * that {@link ScrollStateSnapshot.isScrolling} reports as stopped.
+   */
   readonly isTouchScrolling: boolean
   /**
    * A touch scroll is coasting: the finger is up and the scroll has not settled.
@@ -164,16 +168,25 @@ export const createScrollState = (
 
   const endScroll = () => {
     scrollTimeout = undefined
-    const shouldEndTouchScroll = !isTouching
+    // Movement has stopped, which does not mean the gesture is over: a finger resting
+    // on the screen still holds the scroll open. Without `scrollend` to say when the
+    // gesture ends, a lifted finger is the only signal available.
+    const endsTouchScroll = !supportsScrollEnd && !isTouching
 
-    if (shouldEndTouchScroll) {
+    if (endsTouchScroll) {
       touchSequenceActive = false
     }
 
     update({
       isScrolling: false,
-      isTouchScrolling: shouldEndTouchScroll ? false : isTouchScrolling,
+      isTouchScrolling: endsTouchScroll ? false : isTouchScrolling,
     })
+  }
+
+  const handleScrollEnd = () => {
+    clearScrollTimeout()
+    touchSequenceActive = false
+    update({ isScrolling: false, isTouchScrolling: false })
   }
 
   const handleScroll = () => {
@@ -188,11 +201,7 @@ export const createScrollState = (
       isTouchScrolling: touchSequenceActive || isTouchScrolling,
     })
 
-    // Falling idle is only a guess at the scroll being over, and momentum decelerates
-    // until its events are further apart than the delay. `scrollend` reports the end.
-    if (!supportsScrollEnd) {
-      scrollTimeout = globalThis.setTimeout(endScroll, idleDelay)
-    }
+    scrollTimeout = globalThis.setTimeout(endScroll, idleDelay)
   }
 
   target?.addEventListener('touchstart', handleTouchStart, { passive: true })
@@ -201,7 +210,7 @@ export const createScrollState = (
   target?.addEventListener('scroll', handleScroll, { passive: true })
 
   if (supportsScrollEnd) {
-    target?.addEventListener('scrollend', endScroll, { passive: true })
+    target?.addEventListener('scrollend', handleScrollEnd, { passive: true })
   }
 
   return {
@@ -249,7 +258,7 @@ export const createScrollState = (
       target?.removeEventListener('touchend', handleTouchEnd)
       target?.removeEventListener('touchcancel', handleTouchEnd)
       target?.removeEventListener('scroll', handleScroll)
-      target?.removeEventListener('scrollend', endScroll)
+      target?.removeEventListener('scrollend', handleScrollEnd)
     },
   }
 }
