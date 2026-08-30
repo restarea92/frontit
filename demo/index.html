@@ -196,6 +196,9 @@
       <div class="filler">and again</div>
       <div class="filler">last one</div>
 
+      <h2>raw events</h2>
+      <ul id="events"></ul>
+
       <h2>transitions</h2>
       <ul id="log"></ul>
     </main>
@@ -210,6 +213,7 @@
       const measurementsEl = document.getElementById('measurements')
       const envEl = document.getElementById('env')
       const logEl = document.getElementById('log')
+      const eventsEl = document.getElementById('events')
       const spacerEl = document.getElementById('spacer')
 
       const stateEls = new Map(
@@ -269,6 +273,39 @@
         while (logEl.children.length > 40) {
           logEl.lastElementChild.remove()
         }
+      }
+
+      // The state machine reads touchcancel as a lifted finger, which is a guess. Log what
+      // the browser actually sends so the sequence during momentum can be read off a device.
+      let lastEvent = null
+      let repeats = 0
+
+      const logEvent = (event) => {
+        const touches = event.touches ? `  touches ${event.touches.length}` : ''
+        const label = `${event.type}${touches}`
+
+        if (label === lastEvent) {
+          repeats += 1
+          eventsEl.firstElementChild.lastElementChild.textContent = `${label}  ×${repeats + 1}`
+          return
+        }
+
+        lastEvent = label
+        repeats = 0
+
+        const item = document.createElement('li')
+        const seconds = ((performance.now() - start) / 1000).toFixed(2)
+
+        item.innerHTML = `<time>${seconds}s</time><span>${label}</span>`
+        eventsEl.prepend(item)
+
+        while (eventsEl.children.length > 60) {
+          eventsEl.lastElementChild.remove()
+        }
+      }
+
+      for (const type of ['touchstart', 'touchend', 'touchcancel', 'scroll', 'scrollend']) {
+        addEventListener(type, logEvent, { passive: true })
       }
 
       let previous = scroll.getSnapshot()
