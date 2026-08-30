@@ -192,6 +192,15 @@ export const createScrollState = (
 
   const handleScrollEnd = () => {
     clearScrollTimeout()
+
+    // A finger landing on a coasting scroll ends it, so `scrollend` can arrive while that
+    // finger is still down. It closes the scroll the touch interrupted, not the gesture
+    // now holding the screen, which goes on to drive a scroll of its own.
+    if (isTouching) {
+      update({ isScrolling: false })
+      return
+    }
+
     touchSequenceActive = false
     update({ isScrolling: false, isTouchScrolling: false })
   }

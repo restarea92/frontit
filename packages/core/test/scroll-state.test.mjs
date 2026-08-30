@@ -119,6 +119,32 @@ test('keeps the touch scroll open past the idle delay without scrollend', async 
   state.destroy()
 })
 
+test('keeps the touch scroll open when scrollend lands with the finger down', () => {
+  const target = createScrollEndTarget()
+  const state = createScrollState({ target })
+
+  // A finger grabbing a coasting scroll: it ends that scroll, and only then drags.
+  target.dispatchEvent(createTouchEvent('touchstart', 1))
+  target.dispatchEvent(new Event('scroll'))
+  target.dispatchEvent(new Event('scrollend'))
+
+  assert.equal(state.isTouching, true)
+  assert.equal(state.isScrolling, false)
+  assert.equal(state.isTouchScrolling, true)
+
+  target.dispatchEvent(new Event('scroll'))
+
+  assert.equal(state.isTouchScrolling, true)
+  assert.equal(state.isTouchMomentum, false)
+
+  target.dispatchEvent(createTouchEvent('touchend', 0))
+  target.dispatchEvent(new Event('scrollend'))
+
+  assert.equal(state.isTouchScrolling, false)
+
+  state.destroy()
+})
+
 test('ends touch scrolling on scrollend once the finger is up', () => {
   const target = createScrollEndTarget()
   const state = createScrollState({ target, idleDelay: 10 })
