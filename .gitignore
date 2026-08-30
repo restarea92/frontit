@@ -5,6 +5,7 @@ coverage/
 *.tgz
 *.log
 .npm/
+.npmrc
 .pnpm-store/
 .env
 .env.*
