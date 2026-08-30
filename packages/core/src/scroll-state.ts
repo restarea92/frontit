@@ -1,5 +1,10 @@
 export interface ScrollStateSnapshot {
-  /** A finger is on the screen. */
+  /**
+   * A finger is on the screen, as far as the touch events say.
+   *
+   * iOS delivers none of them while momentum is running: a finger that grabs a coasting
+   * scroll only adds to the scroll events, so this reads false until that scroll ends.
+   */
   readonly isTouching: boolean
   /** The target is moving, by any input. A finger resting mid-scroll makes this false. */
   readonly isScrolling: boolean
@@ -12,9 +17,11 @@ export interface ScrollStateSnapshot {
   /**
    * A touch scroll is coasting: the finger is up and the scroll has not settled.
    *
-   * Inferred from the two states above, since browsers do not report momentum. A
-   * programmatic scroll starting in the same window reads as momentum too. Momentum
-   * from a trackpad is not covered, which is what the name is narrow about.
+   * Inferred from the two states above, since browsers do not report momentum, so it
+   * inherits what {@link ScrollStateSnapshot.isTouching} cannot see: on iOS a finger
+   * that grabs the coasting scroll still reads as momentum. A programmatic scroll
+   * starting in the same window reads as momentum too. Momentum from a trackpad is not
+   * covered, which is what the name is narrow about.
    */
   readonly isTouchMomentum: boolean
 }
