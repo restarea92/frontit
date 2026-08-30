@@ -7,8 +7,8 @@ export interface ScrollStateSnapshot {
 export type ScrollStateListener = (state: ScrollStateSnapshot) => void
 
 export interface ScrollStateOptions {
-  target?: EventTarget
-  idleDelay?: number
+  target?: EventTarget | undefined
+  idleDelay?: number | undefined
 }
 
 export interface ScrollState extends ScrollStateSnapshot {
