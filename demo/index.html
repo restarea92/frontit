@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>frontit inspector</title>
+    <style>
+      :root {
+        --bg: #0b0d10;
+        --panel: #14181d;
+        --line: #232a32;
+        --text: #e6edf3;
+        --dim: #7d8896;
+        --on: #3fb950;
+        --off: #30363d;
+        --accent: #58a6ff;
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      #panel {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 10;
+        background: color-mix(in srgb, var(--panel) 92%, transparent);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--line);
+        padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+      }
+
+      #states {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+
+      .state {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 7px 9px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: #0f1318;
+      }
+
+      .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--off);
+        flex: none;
+        transition: background 90ms linear;
+      }
+
+      .state[data-on='true'] .dot {
+        background: var(--on);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--on) 25%, transparent);
+      }
+
+      .state[data-on='true'] {
+        border-color: color-mix(in srgb, var(--on) 45%, var(--line));
+      }
+
+      .state span {
+        font-size: 11px;
+        letter-spacing: 0.01em;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 11px;
+      }
+
+      th {
+        text-align: right;
+        font-weight: 500;
+        color: var(--dim);
+        padding: 2px 0 4px;
+      }
+
+      th:first-child {
+        text-align: left;
+      }
+
+      td {
+        padding: 2px 0;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      td:first-child {
+        text-align: left;
+        color: var(--dim);
+      }
+
+      tr[data-differs='true'] td:not(:first-child) {
+        color: var(--accent);
+      }
+
+      #env {
+        margin-top: 9px;
+        padding-top: 8px;
+        border-top: 1px solid var(--line);
+        color: var(--dim);
+        font-size: 10.5px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 14px;
+      }
+
+      #env b {
+        color: var(--text);
+        font-weight: 500;
+      }
+
+      main {
+        padding: 12px;
+      }
+
+      .filler {
+        height: 60vh;
+        margin-bottom: 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--dim);
+        background: linear-gradient(160deg, #10151b, #0d1116);
+      }
+
+      #log {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        font-size: 11px;
+      }
+
+      #log li {
+        display: flex;
+        gap: 10px;
+        padding: 3px 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      #log time {
+        color: var(--dim);
+        flex: none;
+        font-variant-numeric: tabular-nums;
+      }
+
+      h2 {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--dim);
+        margin: 24px 0 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="panel">
+      <div id="states"></div>
+      <table>
+        <thead>
+          <tr>
+            <th>value</th>
+            <th>computed</th>
+            <th>rendered</th>
+          </tr>
+        </thead>
+        <tbody id="measurements"></tbody>
+      </table>
+      <div id="env"></div>
+    </div>
+
+    <main>
+      <div id="spacer"></div>
+      <div class="filler">scroll me</div>
+      <div class="filler">keep going</div>
+      <div class="filler">let go and watch momentum</div>
+      <div class="filler">and again</div>
+      <div class="filler">last one</div>
+
+      <h2>transitions</h2>
+      <ul id="log"></ul>
+    </main>
+
+    <script type="module">
+      import { createScrollState, toPx } from './frontit/index.js'
+
+      const STATES = ['isTouching', 'isScrolling', 'isTouchScrolling', 'isTouchMomentum']
+      const VALUES = ['100vh', '100lvh', '100svh', '100dvh', '1rem', '10ch']
+
+      const statesEl = document.getElementById('states')
+      const measurementsEl = document.getElementById('measurements')
+      const envEl = document.getElementById('env')
+      const logEl = document.getElementById('log')
+      const spacerEl = document.getElementById('spacer')
+
+      const stateEls = new Map(
+        STATES.map((name) => {
+          const el = document.createElement('div')
+          el.className = 'state'
+          el.dataset.on = 'false'
+          el.innerHTML = `<i class="dot"></i><span>${name}</span>`
+          statesEl.append(el)
+          return [name, el]
+        }),
+      )
+
+      const rowEls = new Map(
+        VALUES.map((value) => {
+          const row = document.createElement('tr')
+          row.innerHTML = `<td>${value}</td><td>—</td><td>—</td>`
+          measurementsEl.append(row)
+          return [value, row]
+        }),
+      )
+
+      const scroll = createScrollState()
+      const start = performance.now()
+
+      // The panel is fixed, so the page needs to start below it.
+      const reserveSpace = () => {
+        spacerEl.style.height = `${document.getElementById('panel').offsetHeight}px`
+      }
+
+      const renderStates = (snapshot) => {
+        for (const [name, el] of stateEls) {
+          el.dataset.on = String(snapshot[name])
+        }
+      }
+
+      const renderMeasurements = () => {
+        for (const [value, row] of rowEls) {
+          const computed = toPx(value)
+          const rendered = toPx(value, { precision: 'rendered' })
+
+          row.cells[1].textContent = computed === undefined ? 'unsupported' : computed.toFixed(2)
+          row.cells[2].textContent = rendered === undefined ? 'unsupported' : String(rendered)
+          row.dataset.differs = String(
+            computed !== undefined && rendered !== undefined && Math.round(computed) !== rendered,
+          )
+        }
+      }
+
+      const log = (message) => {
+        const item = document.createElement('li')
+        const seconds = ((performance.now() - start) / 1000).toFixed(2)
+
+        item.innerHTML = `<time>${seconds}s</time><span>${message}</span>`
+        logEl.prepend(item)
+
+        while (logEl.children.length > 40) {
+          logEl.lastElementChild.remove()
+        }
+      }
+
+      let previous = scroll.getSnapshot()
+
+      scroll.subscribe((snapshot) => {
+        const changed = STATES.filter((name) => snapshot[name] !== previous[name]).map(
+          (name) => `${name} ${snapshot[name] ? 'on' : 'off'}`,
+        )
+
+        previous = snapshot
+        renderStates(snapshot)
+        log(changed.join(', '))
+      })
+
+      // Viewport units move while the browser chrome does, which is the whole point of
+      // watching them here, so they are remeasured every frame a scroll produces.
+      let queued = false
+
+      const scheduleMeasure = () => {
+        if (queued) {
+          return
+        }
+
+        queued = true
+        requestAnimationFrame(() => {
+          queued = false
+          renderMeasurements()
+        })
+      }
+
+      addEventListener('scroll', scheduleMeasure, { passive: true })
+      addEventListener('resize', () => {
+        scheduleMeasure()
+        reserveSpace()
+      })
+
+      envEl.innerHTML = [
+        ['scrollend', 'onscrollend' in window ? 'yes' : 'no'],
+        ['dpr', String(devicePixelRatio)],
+        ['innerHeight', String(innerHeight)],
+        ['lvh', CSS.supports('height', '1lvh') ? 'yes' : 'no'],
+        ['svh', CSS.supports('height', '1svh') ? 'yes' : 'no'],
+        ['dvh', CSS.supports('height', '1dvh') ? 'yes' : 'no'],
+      ]
+        .map(([label, value]) => `<span>${label} <b>${value}</b></span>`)
+        .join('')
+
+      renderStates(scroll.getSnapshot())
+      renderMeasurements()
+      reserveSpace()
+      log('ready')
+    </script>
+  </body>
+</html>

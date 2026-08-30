@@ -6,6 +6,7 @@
   "packageManager": "pnpm@11.10.0",
   "scripts": {
     "build": "pnpm --filter @frontit/core build && pnpm --filter frontit build",
+    "demo:build": "pnpm build && rm -rf demo/frontit && cp -r packages/core/dist demo/frontit",
     "test": "pnpm build && node --test packages/core/test/*.test.mjs",
     "typecheck": "pnpm --recursive --if-present run typecheck"
   },

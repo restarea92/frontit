@@ -32,3 +32,6 @@ GEMINI.md
 .github/copilot-instructions.md
 .github/instructions/
 .github/prompts/
+
+# built copy of @frontit/core for the demo page
+demo/frontit/
