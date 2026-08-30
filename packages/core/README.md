@@ -162,6 +162,52 @@ Removes every measurement element. Intended for test teardown; you won't need it
 
 <br>
 
+## ⚛️ Framework integration
+
+**React** — `getSnapshot` returns a stable reference, so `useSyncExternalStore` is happy:
+
+```jsx
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
+import { createScrollState } from '@frontit/core';
+
+function useScrollState() {
+  const scroll = useMemo(() => createScrollState(), []);
+
+  useEffect(() => () => scroll.destroy(), [scroll]);
+
+  return useSyncExternalStore(scroll.subscribe, scroll.getSnapshot, scroll.getSnapshot);
+}
+```
+
+> 💡 Both are passed **detached**, with no `.bind()`. Nothing here uses `this`, which is
+> why these are closures rather than classes.
+
+**Vue 3:**
+
+```vue
+<script setup>
+import { onMounted, onBeforeUnmount, ref } from 'vue';
+import { createScrollState } from '@frontit/core';
+
+const state = ref(null);
+let scroll;
+
+onMounted(() => {
+  scroll = createScrollState();
+  state.value = scroll.getSnapshot();
+  scroll.subscribe((next) => (state.value = next));
+});
+
+onBeforeUnmount(() => scroll?.destroy());
+</script>
+```
+
+**SSR:** `createScrollState()` outside a browser attaches nothing and reports everything as
+`false`. `toPx()` returns `undefined`. Neither throws, so there is no `typeof window` dance
+to write.
+
+<br>
+
 ## 📱 Notes from the field
 
 Confirmed on iOS 18.7 / Safari 26.6 with the

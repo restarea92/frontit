@@ -48,10 +48,8 @@ Zero dependencies. ESM only. Node 20+. Nothing throws where there is no DOM.
 ## 📦 What this package is
 
 The umbrella. It re-exports everything from
-[`@frontit/core`](https://www.npmjs.com/package/@frontit/core), so installing `frontit`
-gets you the lot and you never have to think about which package a tool lives in.
-
-Reach for `@frontit/core` directly only if you have a reason to pin it yourself.
+[`@frontit/core`](https://www.npmjs.com/package/@frontit/core), so you never have to think
+about which package a tool lives in.
 
 | Export | What it does |
 | :--- | :--- |
@@ -61,9 +59,9 @@ Reach for `@frontit/core` directly only if you have a reason to pin it yourself.
 
 ## 📚 Documentation
 
-Everything — the state table, the options, the `computed` vs `rendered` distinction, and
-the iOS behaviour worth knowing about — lives in the
-**[core README](https://www.npmjs.com/package/@frontit/core)**.
+The full API reference lives in
+**[`@frontit/core`](https://www.npmjs.com/package/@frontit/core)** — the state table, every
+option, and the iOS behaviour worth knowing about.
 
 The **[Inspector](https://restarea92.github.io/frontit/)** is the fastest way to see what
 any of it does. Open it on a phone.
