@@ -1,0 +1,48 @@
+name: Release
+
+# Never on a tag push: tags get moved and force-pushed, and a publish cannot be undone.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    environment: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing needs a newer npm than Node ships with.
+      - run: npm install -g npm@latest
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+
+      # pnpm packs the tarballs so `workspace:*` is replaced by the real version;
+      # npm publishes them, since it is what holds the OIDC exchange.
+      - run: pnpm --filter @frontit/core pack --pack-destination .
+      - run: pnpm --filter frontit pack --pack-destination .
+
+      - name: Show what will be published
+        run: |
+          for tarball in *.tgz; do
+            echo "::group::$tarball"
+            tar tzf "$tarball"
+            tar xzOf "$tarball" package/package.json | head -40
+            echo "::endgroup::"
+          done
+
+      - run: npm publish frontit-core-*.tgz --access public --provenance
+      - run: npm publish frontit-[0-9]*.tgz --access public --provenance
