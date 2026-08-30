@@ -47,6 +47,7 @@ export const createScrollState = (
   const target =
     options.target ?? (typeof window === 'undefined' ? undefined : window)
   const idleDelay = options.idleDelay ?? 200
+  const supportsScrollEnd = target !== undefined && 'onscrollend' in target
   const listeners = new Set<ScrollStateListener>()
   let isTouching = false
   let isScrolling = false
@@ -131,6 +132,20 @@ export const createScrollState = (
     }, idleDelay)
   }
 
+  const endScroll = () => {
+    scrollTimeout = undefined
+    const shouldEndTouchScroll = !isTouching
+
+    if (shouldEndTouchScroll) {
+      touchSequenceActive = false
+    }
+
+    update({
+      isScrolling: false,
+      isTouchScrolling: shouldEndTouchScroll ? false : isTouchScrolling,
+    })
+  }
+
   const handleScroll = () => {
     clearScrollTimeout()
 
@@ -143,25 +158,21 @@ export const createScrollState = (
       isTouchScrolling: touchSequenceActive || isTouchScrolling,
     })
 
-    scrollTimeout = globalThis.setTimeout(() => {
-      scrollTimeout = undefined
-      const shouldEndTouchScroll = !isTouching
-
-      if (shouldEndTouchScroll) {
-        touchSequenceActive = false
-      }
-
-      update({
-        isScrolling: false,
-        isTouchScrolling: shouldEndTouchScroll ? false : isTouchScrolling,
-      })
-    }, idleDelay)
+    // Falling idle is only a guess at the scroll being over, and momentum decelerates
+    // until its events are further apart than the delay. `scrollend` reports the end.
+    if (!supportsScrollEnd) {
+      scrollTimeout = globalThis.setTimeout(endScroll, idleDelay)
+    }
   }
 
   target?.addEventListener('touchstart', handleTouchStart, { passive: true })
   target?.addEventListener('touchend', handleTouchEnd, { passive: true })
   target?.addEventListener('touchcancel', handleTouchEnd, { passive: true })
   target?.addEventListener('scroll', handleScroll, { passive: true })
+
+  if (supportsScrollEnd) {
+    target?.addEventListener('scrollend', endScroll, { passive: true })
+  }
 
   return {
     get isTouching() {
@@ -201,6 +212,7 @@ export const createScrollState = (
       target?.removeEventListener('touchend', handleTouchEnd)
       target?.removeEventListener('touchcancel', handleTouchEnd)
       target?.removeEventListener('scroll', handleScroll)
+      target?.removeEventListener('scrollend', endScroll)
     },
   }
 }
