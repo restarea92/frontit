@@ -1,11 +1,12 @@
 {
   "name": "frontit",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "A lightweight frontend toolkit for the web.",
   "type": "module",
   "sideEffects": false,
   "files": [
-    "dist"
+    "dist",
+    "CHANGELOG.md"
   ],
   "main": "./dist/index.js",
   "module": "./dist/index.js",
