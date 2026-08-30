@@ -128,6 +128,52 @@
         font-weight: 500;
       }
 
+      #actions {
+        display: flex;
+        gap: 6px;
+        margin-top: 9px;
+      }
+
+      #actions button {
+        flex: 1;
+        padding: 9px;
+        font: inherit;
+        font-size: 11px;
+        color: var(--text);
+        background: #0f1318;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      #actions button:active {
+        background: #1a2029;
+      }
+
+      #actions button[data-done='true'] {
+        border-color: var(--on);
+        color: var(--on);
+      }
+
+      #fallback {
+        display: none;
+        width: 100%;
+        height: 90px;
+        margin-top: 6px;
+        padding: 6px;
+        font: inherit;
+        font-size: 11px;
+        color: var(--text);
+        background: #0f1318;
+        border: 1px solid var(--accent);
+        border-radius: 7px;
+      }
+
+      #fallback[data-shown='true'] {
+        display: block;
+      }
+
       main {
         padding: 12px;
       }
@@ -186,6 +232,11 @@
         <tbody id="measurements"></tbody>
       </table>
       <div id="env"></div>
+      <div id="actions">
+        <button id="clear" type="button">clear logs</button>
+        <button id="copy" type="button">copy report</button>
+      </div>
+      <textarea id="fallback" readonly></textarea>
     </div>
 
     <main>
@@ -342,7 +393,7 @@
         reserveSpace()
       })
 
-      envEl.innerHTML = [
+      const environment = [
         ['scrollend', 'onscrollend' in window ? 'yes' : 'no'],
         ['dpr', String(devicePixelRatio)],
         ['innerHeight', String(innerHeight)],
@@ -350,8 +401,78 @@
         ['svh', CSS.supports('height', '1svh') ? 'yes' : 'no'],
         ['dvh', CSS.supports('height', '1dvh') ? 'yes' : 'no'],
       ]
+
+      envEl.innerHTML = environment
         .map(([label, value]) => `<span>${label} <b>${value}</b></span>`)
         .join('')
+
+      // Oldest first: the logs render newest first, but a sequence is read forwards.
+      const readLog = (el) =>
+        [...el.children]
+          .reverse()
+          .map(
+            (item) =>
+              `${item.firstElementChild.textContent.padStart(8)}  ${item.lastElementChild.textContent}`,
+          )
+          .join('\n')
+
+      const buildReport = () =>
+        [
+          navigator.userAgent,
+          environment.map(([label, value]) => `${label}: ${value}`).join('  '),
+          '',
+          'measurements',
+          [...rowEls].map(
+            ([value, row]) =>
+              `  ${value.padEnd(8)} computed ${row.cells[1].textContent.padStart(10)}   rendered ${row.cells[2].textContent.padStart(6)}`,
+          ).join('\n'),
+          '',
+          'raw events',
+          readLog(eventsEl),
+          '',
+          'transitions',
+          readLog(logEl),
+        ].join('\n')
+
+      const flash = (button, text) => {
+        const original = button.textContent
+
+        button.textContent = text
+        button.dataset.done = 'true'
+        setTimeout(() => {
+          button.textContent = original
+          button.dataset.done = 'false'
+        }, 1200)
+      }
+
+      const copyEl = document.getElementById('copy')
+      const fallbackEl = document.getElementById('fallback')
+
+      copyEl.addEventListener('click', async () => {
+        const report = buildReport()
+
+        try {
+          await navigator.clipboard.writeText(report)
+          flash(copyEl, 'copied')
+        } catch {
+          // Clipboard access is refused in some in-app browsers, so offer the text to
+          // select by hand rather than losing the report.
+          fallbackEl.value = report
+          fallbackEl.dataset.shown = 'true'
+          fallbackEl.select()
+          reserveSpace()
+        }
+      })
+
+      document.getElementById('clear').addEventListener('click', (event) => {
+        eventsEl.replaceChildren()
+        logEl.replaceChildren()
+        lastEvent = null
+        repeats = 0
+        fallbackEl.dataset.shown = 'false'
+        reserveSpace()
+        flash(event.currentTarget, 'cleared')
+      })
 
       renderStates(scroll.getSnapshot())
       renderMeasurements()
