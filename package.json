@@ -1,0 +1,18 @@
+{
+  "name": "frontit-workspace",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "packageManager": "pnpm@11.10.0",
+  "scripts": {
+    "build": "pnpm --filter @frontit/core build && pnpm --filter frontit build",
+    "test": "pnpm build && node --test packages/core/test/*.test.mjs",
+    "typecheck": "pnpm --recursive --if-present run typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

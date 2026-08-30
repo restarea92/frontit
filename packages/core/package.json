@@ -1,0 +1,52 @@
+{
+  "name": "@frontit/core",
+  "version": "0.0.1",
+  "description": "Low-level browser primitives and utilities for frontend development.",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./scroll": {
+      "types": "./dist/scroll/index.d.ts",
+      "import": "./dist/scroll/index.js",
+      "default": "./dist/scroll/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/restarea92/frontit.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/restarea92/frontit#readme",
+  "bugs": {
+    "url": "https://github.com/restarea92/frontit/issues"
+  },
+  "keywords": [
+    "frontend",
+    "browser",
+    "touch",
+    "scroll",
+    "interaction",
+    "typescript"
+  ],
+  "author": "Yohan Byun <restarea@me.com>",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}

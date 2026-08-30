@@ -1,0 +1,200 @@
+export interface ScrollStateSnapshot {
+  readonly isTouching: boolean
+  readonly isScrolling: boolean
+  readonly isTouchScrolling: boolean
+}
+
+export type ScrollStateListener = (state: ScrollStateSnapshot) => void
+
+export interface ScrollStateOptions {
+  target?: EventTarget
+  idleDelay?: number
+}
+
+export interface ScrollState extends ScrollStateSnapshot {
+  subscribe(listener: ScrollStateListener): () => void
+  destroy(): void
+}
+
+const getTouchCount = (event: Event): number | undefined => {
+  if (!('touches' in event)) {
+    return undefined
+  }
+
+  const touches = event.touches
+
+  if (
+    typeof touches !== 'object' ||
+    touches === null ||
+    !('length' in touches) ||
+    typeof touches.length !== 'number'
+  ) {
+    return undefined
+  }
+
+  return touches.length
+}
+
+export const createScrollState = (
+  options: ScrollStateOptions = {},
+): ScrollState => {
+  const target =
+    options.target ?? (typeof window === 'undefined' ? undefined : window)
+  const idleDelay = options.idleDelay ?? 200
+  const listeners = new Set<ScrollStateListener>()
+  let isTouching = false
+  let isScrolling = false
+  let isTouchScrolling = false
+  let touchSequenceActive = false
+  let scrollTimeout: number | undefined
+  let touchTimeout: number | undefined
+  let destroyed = false
+
+  const snapshot = (): ScrollStateSnapshot => ({
+    isTouching,
+    isScrolling,
+    isTouchScrolling,
+  })
+
+  const notify = () => {
+    const state = snapshot()
+    listeners.forEach((listener) => listener(state))
+  }
+
+  const update = (nextState: Partial<ScrollStateSnapshot>) => {
+    if (destroyed) {
+      return
+    }
+
+    const nextIsTouching = nextState.isTouching ?? isTouching
+    const nextIsScrolling = nextState.isScrolling ?? isScrolling
+    const nextIsTouchScrolling =
+      nextState.isTouchScrolling ?? isTouchScrolling
+
+    if (
+      nextIsTouching === isTouching &&
+      nextIsScrolling === isScrolling &&
+      nextIsTouchScrolling === isTouchScrolling
+    ) {
+      return
+    }
+
+    isTouching = nextIsTouching
+    isScrolling = nextIsScrolling
+    isTouchScrolling = nextIsTouchScrolling
+    notify()
+  }
+
+  const clearScrollTimeout = () => {
+    if (scrollTimeout !== undefined) {
+      clearTimeout(scrollTimeout)
+      scrollTimeout = undefined
+    }
+  }
+
+  const clearTouchTimeout = () => {
+    if (touchTimeout !== undefined) {
+      clearTimeout(touchTimeout)
+      touchTimeout = undefined
+    }
+  }
+
+  const handleTouchStart = () => {
+    clearTouchTimeout()
+    touchSequenceActive = true
+    update({ isTouching: true })
+  }
+
+  const handleTouchEnd = (event: Event) => {
+    const nextIsTouching = (getTouchCount(event) ?? 0) > 0
+
+    update({ isTouching: nextIsTouching })
+
+    if (nextIsTouching) {
+      return
+    }
+
+    clearTouchTimeout()
+    touchTimeout = globalThis.setTimeout(() => {
+      touchTimeout = undefined
+
+      if (!isScrolling) {
+        touchSequenceActive = false
+        update({ isTouchScrolling: false })
+      }
+    }, idleDelay)
+  }
+
+  const handleScroll = () => {
+    clearScrollTimeout()
+
+    if (touchSequenceActive) {
+      clearTouchTimeout()
+    }
+
+    update({
+      isScrolling: true,
+      isTouchScrolling: touchSequenceActive || isTouchScrolling,
+    })
+
+    scrollTimeout = globalThis.setTimeout(() => {
+      scrollTimeout = undefined
+      const shouldEndTouchScroll = !isTouching
+
+      if (shouldEndTouchScroll) {
+        touchSequenceActive = false
+      }
+
+      update({
+        isScrolling: false,
+        isTouchScrolling: shouldEndTouchScroll ? false : isTouchScrolling,
+      })
+    }, idleDelay)
+  }
+
+  target?.addEventListener('touchstart', handleTouchStart, { passive: true })
+  target?.addEventListener('touchend', handleTouchEnd, { passive: true })
+  target?.addEventListener('touchcancel', handleTouchEnd, { passive: true })
+  target?.addEventListener('scroll', handleScroll, { passive: true })
+
+  return {
+    get isTouching() {
+      return isTouching
+    },
+    get isScrolling() {
+      return isScrolling
+    },
+    get isTouchScrolling() {
+      return isTouchScrolling
+    },
+    subscribe(listener) {
+      if (destroyed) {
+        return () => undefined
+      }
+
+      listeners.add(listener)
+
+      return () => {
+        listeners.delete(listener)
+      }
+    },
+    destroy() {
+      if (destroyed) {
+        return
+      }
+
+      destroyed = true
+      clearScrollTimeout()
+      clearTouchTimeout()
+      listeners.clear()
+      isTouching = false
+      isScrolling = false
+      isTouchScrolling = false
+      touchSequenceActive = false
+      target?.removeEventListener('touchstart', handleTouchStart)
+      target?.removeEventListener('touchend', handleTouchEnd)
+      target?.removeEventListener('touchcancel', handleTouchEnd)
+      target?.removeEventListener('scroll', handleScroll)
+    },
+  }
+}
