@@ -111,7 +111,15 @@ export const createScrollState = (
     isScrolling = nextIsScrolling
     isTouchScrolling = nextIsTouchScrolling
     snapshot = buildSnapshot()
-    listeners.forEach((listener) => listener(snapshot))
+
+    // Iterate a copy so a listener subscribing from within one does not receive the
+    // notification it is already inside of, and re-check membership so one that
+    // unsubscribes during the same pass is not called after it asked to stop.
+    for (const listener of [...listeners]) {
+      if (listeners.has(listener)) {
+        listener(snapshot)
+      }
+    }
   }
 
   const clearScrollTimeout = () => {

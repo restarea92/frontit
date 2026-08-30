@@ -226,6 +226,47 @@ test('delivers the same object to subscribers that getSnapshot returns', () => {
   state.destroy()
 })
 
+test('skips a listener that unsubscribes earlier in the same notification', () => {
+  const target = new EventTarget()
+  const state = createScrollState({ target })
+  const called = []
+
+  let unsubscribeSecond
+
+  state.subscribe(() => {
+    called.push('first')
+    unsubscribeSecond()
+  })
+
+  unsubscribeSecond = state.subscribe(() => called.push('second'))
+  target.dispatchEvent(createTouchEvent('touchstart', 1))
+
+  assert.deepEqual(called, ['first'])
+
+  state.destroy()
+})
+
+test('does not notify a listener that subscribes during a notification', () => {
+  const target = new EventTarget()
+  const state = createScrollState({ target })
+  const called = []
+
+  state.subscribe(() => {
+    called.push('first')
+    state.subscribe(() => called.push('late'))
+  })
+
+  target.dispatchEvent(createTouchEvent('touchstart', 1))
+
+  assert.deepEqual(called, ['first'])
+
+  target.dispatchEvent(createTouchEvent('touchend', 0))
+
+  assert.deepEqual(called, ['first', 'first', 'late'])
+
+  state.destroy()
+})
+
 test('removes listeners and timers when destroyed', async () => {
   const target = new EventTarget()
   const state = createScrollState({ target, idleDelay: 10 })
