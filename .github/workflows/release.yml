@@ -11,7 +11,7 @@ permissions:
   id-token: write
 
 jobs:
-  publish:
+  stage:
     environment: release
     runs-on: ubuntu-latest
     steps:
@@ -24,25 +24,40 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
-      # Trusted publishing needs a newer npm than Node ships with.
+      # Staged publishing needs npm 11.15 or newer.
       - run: npm install -g npm@latest
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
 
-      # pnpm packs the tarballs so `workspace:*` is replaced by the real version;
-      # npm publishes them, since it is what holds the OIDC exchange.
+      # pnpm packs so `workspace:*` becomes the real version. npm holds the OIDC
+      # exchange, and stages from the unpacked copy — scripts are skipped because the
+      # tarball carries no sources to build from.
       - run: pnpm --filter @frontit/core pack --pack-destination .
       - run: pnpm --filter frontit pack --pack-destination .
 
-      - name: Show what will be published
+      - name: Show what will be staged
         run: |
           for tarball in *.tgz; do
             echo "::group::$tarball"
             tar tzf "$tarball"
-            tar xzOf "$tarball" package/package.json | head -40
+            tar xzOf "$tarball" package/package.json
             echo "::endgroup::"
           done
 
-      - run: npm publish frontit-core-*.tgz --access public --provenance
-      - run: npm publish frontit-[0-9]*.tgz --access public --provenance
+      - name: Stage @frontit/core
+        run: |
+          mkdir -p staging/core && tar xzf frontit-core-*.tgz -C staging/core
+          cd staging/core/package && npm stage publish --ignore-scripts --access public
+
+      - name: Stage frontit
+        run: |
+          mkdir -p staging/umbrella && tar xzf frontit-[0-9]*.tgz -C staging/umbrella
+          cd staging/umbrella/package && npm stage publish --ignore-scripts --access public
+
+      - name: How to approve
+        run: |
+          echo "Staged, not live. Review and promote from a terminal with 2FA:"
+          echo "  npm stage list"
+          echo "  npm stage download <stage-id>   # inspect the actual tarball"
+          echo "  npm stage approve <stage-id>    # @frontit/core first"
