@@ -157,7 +157,7 @@
 
         const cell = (label, px) => {
           const el = document.createElement('div')
-          const value = px === undefined || Number.isNaN(px) ? '—' : px.toFixed(2)
+          const value = px === undefined ? '—' : px.toFixed(2)
           el.innerHTML = `<b>${label}</b><span>${value}</span>`
           return el
         }
@@ -181,7 +181,7 @@
 
         percentEl.replaceChildren(
           ...Object.entries(snapshot.percent).map(([property, px]) =>
-            cell(property, px ?? Number.NaN),
+            cell(property, px),
           ),
         )
 
