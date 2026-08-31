@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>toPx — frontit</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main>
+      <nav>
+        <a href="./index.html">index</a>
+        <a href="./scroll.html">createScrollState</a>
+        <a href="./units.html" aria-current="page">toPx</a>
+      </nav>
+
+      <h2>live</h2>
+      <p>
+        Remeasured on every scroll frame. Drag the page a little: the viewport families
+        move while the browser chrome does, and computed lands between device pixels.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>value</th>
+            <th>computed</th>
+            <th>rendered</th>
+          </tr>
+        </thead>
+        <tbody id="live"></tbody>
+      </table>
+
+      <h2>toPx()</h2>
+      <p>
+        One of every unit this browser resolves. A unit it rejects has no entry, so this
+        doubles as a support map.
+      </p>
+      <div id="snapshot"></div>
+      <p id="check"></p>
+
+      <div class="actions">
+        <button id="refresh" type="button">remeasure</button>
+        <button id="copy" type="button">copy report</button>
+      </div>
+      <textarea id="fallback" readonly></textarea>
+
+      <h2>environment</h2>
+      <div id="env"></div>
+
+      <div class="filler">scroll me to move the chrome</div>
+      <div class="filler">and back up</div>
+    </main>
+
+    <script type="module">
+      import { toPx } from './frontit/index.js'
+      import { environment, flash, header, renderEnvironment, wireCopy } from './shared.js'
+
+      // The viewport families are where the browser chrome shows up, and vw is here to
+      // confirm a width unit is measured and rounded on the width axis.
+      const LIVE = [
+        { value: 100, unit: 'vh' },
+        { value: 100, unit: 'svh' },
+        { value: 100, unit: 'lvh' },
+        { value: 100, unit: 'dvh' },
+        { value: 100, unit: 'vw' },
+      ]
+
+      const liveEl = document.getElementById('live')
+      const snapshotEl = document.getElementById('snapshot')
+      const checkEl = document.getElementById('check')
+      const fallbackEl = document.getElementById('fallback')
+
+      const liveEls = new Map(
+        LIVE.map((item) => {
+          const row = document.createElement('tr')
+          row.innerHTML = `<td>${item.value}${item.unit}</td><td>&mdash;</td><td>&mdash;</td>`
+          liveEl.append(row)
+          return [item, row]
+        }),
+      )
+
+      const renderLive = () => {
+        for (const [item, row] of liveEls) {
+          const computed = toPx(item)
+          const rendered = toPx({ ...item, precision: 'rendered' })
+
+          row.cells[1].textContent = computed === undefined ? 'unsupported' : computed.toFixed(2)
+          row.cells[2].textContent = rendered === undefined ? 'unsupported' : String(rendered)
+          row.dataset.differs = String(
+            computed !== undefined && rendered !== undefined && Math.round(computed) !== rendered,
+          )
+        }
+      }
+
+      let snapshot = {}
+
+      const renderSnapshot = () => {
+        snapshot = toPx()
+
+        snapshotEl.replaceChildren(
+          ...Object.entries(snapshot).map(([unit, px]) => {
+            const cell = document.createElement('div')
+            cell.innerHTML = `<b>${unit}</b><span>${px.toFixed(2)}</span>`
+            return cell
+          }),
+        )
+
+        // The snapshot is one of each and multiplying is the caller's job, so the two
+        // have to agree. They only can in computed space.
+        const single = toPx(50, 'vh')
+        const scaled = snapshot.vh === undefined ? undefined : snapshot.vh * 50
+
+        checkEl.dataset.ok = String(
+          single !== undefined && scaled !== undefined && Math.abs(single - scaled) < 0.01,
+        )
+        checkEl.innerHTML =
+          `toPx(50, 'vh') <b>${single?.toFixed(2) ?? '—'}</b>` +
+          ` · toPx().vh × 50 <b>${scaled?.toFixed(2) ?? '—'}</b>` +
+          ` · ${Object.keys(snapshot).length} units resolved`
+      }
+
+      let queued = false
+
+      const scheduleLive = () => {
+        if (queued) {
+          return
+        }
+
+        queued = true
+        requestAnimationFrame(() => {
+          queued = false
+          renderLive()
+        })
+      }
+
+      // The snapshot builds an element per unit, so it is not something to run on every
+      // scroll frame. It only changes once the viewport settles anyway.
+      addEventListener('scroll', scheduleLive, { passive: true })
+      addEventListener('scrollend', renderSnapshot)
+      addEventListener('resize', () => {
+        scheduleLive()
+        renderSnapshot()
+      })
+
+      const env = environment()
+
+      renderEnvironment(document.getElementById('env'), env)
+
+      wireCopy(document.getElementById('copy'), fallbackEl, () =>
+        [
+          header(env),
+          '',
+          'live',
+          [...liveEls]
+            .map(
+              ([item, row]) =>
+                `  ${`${item.value}${item.unit}`.padEnd(8)} computed ${row.cells[1].textContent.padStart(11)}   rendered ${row.cells[2].textContent.padStart(11)}`,
+            )
+            .join('\n'),
+          '',
+          'toPx()',
+          Object.entries(snapshot)
+            .map(([unit, px]) => `  ${unit.padEnd(7)} ${px.toFixed(4).padStart(11)}`)
+            .join('\n'),
+          '',
+          checkEl.textContent,
+        ].join('\n'),
+      )
+
+      document.getElementById('refresh').addEventListener('click', (event) => {
+        renderLive()
+        renderSnapshot()
+        flash(event.currentTarget, 'measured')
+      })
+
+      renderLive()
+      renderSnapshot()
+    </script>
+  </body>
+</html>

@@ -7,4 +7,10 @@ export type {
 } from './scroll-state.js'
 
 export { disposeToPx, toPx } from './to-px.js'
-export type { ToPxOptions, ToPxPrecision } from './to-px.js'
+export type {
+  LengthOptions,
+  PxSnapshot,
+  SnapshotOptions,
+  ToPxPrecision,
+  Unit,
+} from './to-px.js'

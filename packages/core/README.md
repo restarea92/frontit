@@ -105,30 +105,61 @@ waits for the finger to leave.
 
 <br>
 
-## 📏 `toPx(value, options?)`
+## 📏 `toPx(...)`
 
-Converts a CSS length to pixels by measuring it on a hidden element.
+Resolves a CSS unit to pixels by measuring it on a hidden element.
 
 ```javascript
 import { toPx } from '@frontit/core';
 
-toPx('100lvh');                            // 926
-toPx('100dvh');                            // 834.31 while the address bar animates
-toPx('10ch', { context: headingElement }); // resolved in that element's font
-toPx('1lvh') ?? toPx('1vh') ?? 0;          // the CSS fallback pattern, in JavaScript
+toPx('lvh');                      // 9.26   — one unit
+toPx(100, 'dvh');                 // 834.31 — while the address bar animates
+toPx({ value: 10, unit: 'ch' });  // 84
+toPx();                           // every unit at once, see below
 ```
 
-There is no `CSS.px('1lvh')`, and `getComputedStyle` needs an element that already exists.
-So `toPx` creates a hidden one, asks it, and reuses it — building and removing an element
-per call would cost two reflows, and this gets called on every scroll.
+There is no `CSS.px('1lvh')`, and `getComputedStyle` needs an element that already
+exists. So `toPx` creates a hidden one, asks it, and reuses it.
 
-### Options
+### Calls
+
+The object form is the real signature; the two short forms exist because they are what
+you write most.
+
+| Call | Returns |
+| :--- | :--- |
+| `toPx()` | Every unit, one of each. |
+| `toPx('vh')` | One `vh`, in pixels. |
+| `toPx(100, 'vh')` | A hundred of them. |
+| `toPx({ value, unit, precision, fallback })` | The same, spelled out. |
 
 | Option | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `context` | `Element` | `document.body` | Measure inside this element. Needed for units that resolve against an ancestor — `ch` and `em` against its font, container query units against its box. The measurement element is appended for the duration of the call and never left behind. |
+| `value` | `number` | `1` | How many of `unit`. |
+| `unit` | `Unit` | — | Any CSS unit, spelled as in CSS. Omit it and you get the snapshot. |
 | `precision` | `'computed' \| 'rendered'` | `'computed'` | `computed` gives the subpixel CSS value. `rendered` rounds to an integer, closer to what the browser paints. |
 | `fallback` | `number` | — | Returned when measurement is impossible. Supplying it **narrows the return type to `number`**. |
+
+You pass a unit, not a string of CSS, so nothing has to be parsed — and each unit already
+knows which axis it belongs on. `vh` is measured as a height, `vw` and `ch` as widths, and
+`rendered` rounds on that same axis.
+
+### `toPx()` — the whole table
+
+```javascript
+toPx();
+// { px: 1, rem: 16, ch: 8.4, vh: 9.26, lvh: 9.26, dvh: 8.34, cqw: 4.14, … }
+```
+
+**A unit the browser rejects has no key**, so the result doubles as a support map:
+
+```javascript
+'lvh' in toPx();  // feature detection, with the value already measured
+```
+
+No amount, because multiplying is yours to do and units are linear — but only in computed
+space, which is why the snapshot has no `precision`. Rounding happens once at the final
+size: `1vh` rendered as `8` times fifty is `400`, while `50vh` rendered is `417`.
 
 ### Why `undefined` and not `0`
 
@@ -136,9 +167,13 @@ per call would cost two reflows, and this gets called on every scroll.
 original of this function returned `0` when it couldn't measure, and an unsupported `lvh`
 would quietly become `0px` — collapsing a layout with no error anywhere.
 
-`toPx` validates with `CSS.supports` before measuring, so an invalid value or a unit the
-browser doesn't know returns `undefined`. That is what lets `??` express the same fallback
-chain you'd write in CSS.
+`toPx` validates with `CSS.supports` before measuring and checks that what comes back is
+in pixels, so anything it could not resolve returns `undefined`. That is what lets `??`
+express the same fallback chain you'd write in CSS:
+
+```javascript
+toPx('lvh') ?? toPx('vh') ?? 0;
+```
 
 ### `computed` vs `rendered`
 
@@ -149,18 +184,23 @@ variable that other elements consume and you get seams; write the integer and yo
 The gap shows up exactly where you'd least like it: while the mobile address bar is
 animating, `dvh` lands between pixels.
 
-### Not supported: `%`
-
-The measurement element is absolutely positioned, so percentages resolve against the
-nearest *positioned* ancestor rather than the `context` you passed. Making it work would
-mean putting the element into normal flow, where it would interfere with the caller's own
-layout. Not worth it — so it's simply out of scope.
-
 ### `disposeToPx()`
 
 Removes every measurement element. Intended for test teardown; you won't need it in an app.
 
-<br>
+### Not yet: `%` and a measuring context
+
+Both are coming and neither will change the calls above.
+
+A percentage is not a unit — it is a token every property resolves against its own basis.
+`font-size: 50%` is half the parent's font size, `height: 50%` is half the containing
+block, and `padding-top: 50%` is half its **width**. So a percentage needs a property and
+an element to resolve against, and it will take them as `toPx({ value, unit: '%',
+property, context })`.
+
+`ch` and `em` currently resolve against `document.body`. Naming another element is the
+same addition, one field further along.
+
 
 ## ⚛️ Framework integration
 

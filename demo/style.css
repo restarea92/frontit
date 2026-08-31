@@ -1,0 +1,302 @@
+:root {
+  --bg: #0b0d10;
+  --panel: #14181d;
+  --line: #232a32;
+  --text: #e6edf3;
+  --dim: #7d8896;
+  --on: #3fb950;
+  --off: #30363d;
+  --accent: #58a6ff;
+  --bad: #f85149;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+a {
+  color: var(--accent);
+}
+
+main {
+  padding: 12px;
+}
+
+h1 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+
+h2 {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--dim);
+  margin: 22px 0 6px;
+}
+
+p {
+  margin: 0 0 12px;
+  font-size: 11px;
+  color: var(--dim);
+}
+
+nav {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+nav a {
+  flex: 1;
+  padding: 8px;
+  text-align: center;
+  font-size: 11px;
+  text-decoration: none;
+  color: var(--dim);
+  background: #0f1318;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+
+nav a[aria-current='page'] {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+th {
+  text-align: right;
+  font-weight: 500;
+  color: var(--dim);
+  padding: 2px 0 4px;
+}
+
+th:first-child {
+  text-align: left;
+}
+
+td {
+  padding: 2px 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+td:first-child {
+  text-align: left;
+  color: var(--dim);
+}
+
+tr[data-differs='true'] td:not(:first-child) {
+  color: var(--accent);
+}
+
+#env {
+  color: var(--dim);
+  font-size: 10.5px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+
+#env b {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.actions button {
+  flex: 1;
+  padding: 9px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--text);
+  background: #0f1318;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.actions button:active {
+  background: #1a2029;
+}
+
+.actions button[data-done='true'] {
+  border-color: var(--on);
+  color: var(--on);
+}
+
+#fallback {
+  display: none;
+  width: 100%;
+  height: 90px;
+  margin-top: 6px;
+  padding: 6px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--text);
+  background: #0f1318;
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+}
+
+#fallback[data-shown='true'] {
+  display: block;
+}
+
+/* scroll.html */
+
+#panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+}
+
+#states {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.state {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #0f1318;
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--off);
+  flex: none;
+  transition: background 90ms linear;
+}
+
+.state[data-on='true'] .dot {
+  background: var(--on);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--on) 25%, transparent);
+}
+
+.state[data-on='true'] {
+  border-color: color-mix(in srgb, var(--on) 45%, var(--line));
+}
+
+.state span {
+  font-size: 11px;
+}
+
+.filler {
+  height: 60vh;
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dim);
+  background: linear-gradient(160deg, #10151b, #0d1116);
+}
+
+/* Fixed height: a log that grows the page makes the page scroll, which writes more
+   log. The pane scrolls instead. */
+.log {
+  height: 190px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0 0 12px;
+  padding: 0 8px;
+  list-style: none;
+  font-size: 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0f1318;
+}
+
+.log li {
+  display: flex;
+  gap: 10px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.log li:last-child {
+  border-bottom: 0;
+}
+
+.log time {
+  color: var(--dim);
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+/* units.html */
+
+#snapshot {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+#snapshot div {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 5px 8px;
+  background: #0f1318;
+  font-size: 11px;
+}
+
+#snapshot b {
+  color: var(--dim);
+  font-weight: 500;
+}
+
+#snapshot span {
+  font-variant-numeric: tabular-nums;
+}
+
+#check b {
+  font-weight: 500;
+}
+
+#check[data-ok='true'] b {
+  color: var(--on);
+}
+
+#check[data-ok='false'] b {
+  color: var(--bad);
+}

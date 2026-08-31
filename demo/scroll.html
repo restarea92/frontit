@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>createScrollState — frontit</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div id="panel">
+      <div id="states"></div>
+      <div class="actions">
+        <button id="clear" type="button">clear logs</button>
+        <button id="copy" type="button">copy report</button>
+      </div>
+      <textarea id="fallback" readonly></textarea>
+    </div>
+
+    <main>
+      <div id="spacer"></div>
+
+      <nav>
+        <a href="./index.html">index</a>
+        <a href="./scroll.html" aria-current="page">createScrollState</a>
+        <a href="./units.html">toPx</a>
+      </nav>
+
+      <p>Scroll, flick, hold a finger still mid-scroll, and grab a coasting scroll.</p>
+
+      <div class="filler">scroll me</div>
+      <div class="filler">keep going</div>
+      <div class="filler">let go and watch momentum</div>
+      <div class="filler">and again</div>
+
+      <h2>raw events</h2>
+      <ul class="log" id="events"></ul>
+
+      <h2>state transitions</h2>
+      <ul class="log" id="log"></ul>
+
+      <h2>environment</h2>
+      <div id="env"></div>
+    </main>
+
+    <script type="module">
+      import { createScrollState } from './frontit/index.js'
+      import { environment, flash, header, renderEnvironment, wireCopy } from './shared.js'
+
+      const STATES = ['isTouching', 'isScrolling', 'isTouchScrolling', 'isTouchMomentum']
+
+      const statesEl = document.getElementById('states')
+      const logEl = document.getElementById('log')
+      const eventsEl = document.getElementById('events')
+      const spacerEl = document.getElementById('spacer')
+      const fallbackEl = document.getElementById('fallback')
+
+      const stateEls = new Map(
+        STATES.map((name) => {
+          const el = document.createElement('div')
+          el.className = 'state'
+          el.dataset.on = 'false'
+          el.innerHTML = `<i class="dot"></i><span>${name}</span>`
+          statesEl.append(el)
+          return [name, el]
+        }),
+      )
+
+      const scroll = createScrollState()
+      const start = performance.now()
+
+      // The panel is fixed, so the page needs to start below it.
+      const reserveSpace = () => {
+        spacerEl.style.height = `${document.getElementById('panel').offsetHeight}px`
+      }
+
+      const entry = (target, message, limit) => {
+        const item = document.createElement('li')
+        const seconds = ((performance.now() - start) / 1000).toFixed(2)
+
+        item.innerHTML = `<time>${seconds}s</time><span>${message}</span>`
+        target.prepend(item)
+
+        while (target.children.length > limit) {
+          target.lastElementChild.remove()
+        }
+      }
+
+      // iOS delivers no touch events during momentum, so the raw sequence is the only way
+      // to tell what the device actually sent.
+      let lastEvent = null
+      let repeats = 0
+
+      const logEvent = (event) => {
+        const touches = event.touches ? `  touches ${event.touches.length}` : ''
+        const label = `${event.type}${touches}`
+
+        if (label === lastEvent) {
+          repeats += 1
+          eventsEl.firstElementChild.lastElementChild.textContent = `${label}  ×${repeats + 1}`
+          return
+        }
+
+        lastEvent = label
+        repeats = 0
+        entry(eventsEl, label, 80)
+      }
+
+      for (const type of ['touchstart', 'touchend', 'touchcancel', 'scroll', 'scrollend']) {
+        addEventListener(type, logEvent, { passive: true })
+      }
+
+      let previous = scroll.getSnapshot()
+
+      scroll.subscribe((next) => {
+        const changed = STATES.filter((name) => next[name] !== previous[name]).map(
+          (name) => `${name} ${next[name] ? 'on' : 'off'}`,
+        )
+
+        previous = next
+
+        for (const [name, el] of stateEls) {
+          el.dataset.on = String(next[name])
+        }
+
+        entry(logEl, changed.join(', '), 60)
+      })
+
+      const env = environment()
+
+      renderEnvironment(document.getElementById('env'), env)
+      addEventListener('resize', reserveSpace)
+
+      // Oldest first: the logs render newest first, but a sequence is read forwards.
+      const readLog = (el) =>
+        [...el.children]
+          .reverse()
+          .map(
+            (item) =>
+              `${item.firstElementChild.textContent.padStart(8)}  ${item.lastElementChild.textContent}`,
+          )
+          .join('\n')
+
+      wireCopy(
+        document.getElementById('copy'),
+        fallbackEl,
+        () =>
+          [header(env), '', 'raw events', readLog(eventsEl), '', 'transitions', readLog(logEl)].join(
+            '\n',
+          ),
+        reserveSpace,
+      )
+
+      document.getElementById('clear').addEventListener('click', (event) => {
+        eventsEl.replaceChildren()
+        logEl.replaceChildren()
+        lastEvent = null
+        repeats = 0
+        fallbackEl.dataset.shown = 'false'
+        reserveSpace()
+        flash(event.currentTarget, 'cleared')
+      })
+
+      for (const [name, el] of stateEls) {
+        el.dataset.on = String(scroll.getSnapshot()[name])
+      }
+
+      reserveSpace()
+      entry(logEl, 'ready', 60)
+    </script>
+  </body>
+</html>

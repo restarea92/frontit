@@ -64,7 +64,8 @@ scroll.subscribe((state) => {
   }
 });
 
-toPx('100dvh'); // 834.31 while the address bar animates
+toPx(100, 'dvh'); // 834.31 while the address bar animates
+toPx();           // { rem: 16, ch: 8.4, lvh: 9.26, dvh: 8.34, … } every unit at once
 ```
 
 Zero dependencies. ESM only. Node 20+. Nothing throws where there is no DOM.
@@ -99,9 +100,9 @@ turning into a junk drawer.
 </div>
 <br>
 
-Open it on a phone. It shows every state as it flips, measures viewport units in both
-precisions while the browser chrome slides around, and logs the raw touch and scroll events
-the device emitted.
+Open it on a phone. One page per tool: the scroll states as they flip, alongside the raw
+touch and scroll events the device emitted; and every CSS unit the browser resolves, in
+pixels, remeasured while the chrome slides around.
 
 Node has no DOM and jsdom computes no layout, so momentum, `scrollend` ordering and the gap
 between a computed `834.31` and a painted `834` are invisible to any test runner. Every
