@@ -16,8 +16,8 @@
 
       <h2>live</h2>
       <p>
-        Remeasured on every scroll frame. Drag the page a little: the viewport families
-        move while the browser chrome does, and computed lands between device pixels.
+        Remeasured on every scroll frame, so a viewport that changes size shows up here
+        as it happens. Highlighted where computed and rendered disagree.
       </p>
       <table>
         <thead>
@@ -54,8 +54,8 @@
       import { toPx } from './frontit/index.js'
       import { environment, flash, header, renderEnvironment, wireCopy } from './shared.js'
 
-      // The viewport families are where the browser chrome shows up, and vw is here to
-      // confirm a width unit is measured and rounded on the width axis.
+      // Viewport units are the ones that move, and vw confirms a width unit is measured
+      // and rounded on the width axis.
       const LIVE = [
         { value: 100, unit: 'vh' },
         { value: 100, unit: 'svh' },

@@ -38,7 +38,7 @@ scroll.subscribe((state) => {
   }
 });
 
-toPx(100, 'dvh'); // 834.31 while the address bar animates
+toPx(100, 'dvh'); // 834.31
 toPx();           // every unit this browser resolves, in pixels
 ```
 

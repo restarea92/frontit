@@ -113,7 +113,7 @@ Resolves a CSS unit to pixels by measuring it on a hidden element.
 import { toPx } from '@frontit/core';
 
 toPx('lvh');                      // 9.26   — one unit
-toPx(100, 'dvh');                 // 834.31 — while the address bar animates
+toPx(100, 'dvh');                 // 834.31
 toPx({ value: 10, unit: 'ch' });  // 84
 toPx();                           // every unit at once, see below
 ```
@@ -193,8 +193,8 @@ Not a performance switch — the two genuinely differ. The browser snaps boxes t
 pixels, so a computed `834.31` is painted as `834`. Write the fractional value into a CSS
 variable that other elements consume and you get seams; write the integer and you don't.
 
-The gap shows up exactly where you'd least like it: while the mobile address bar is
-animating, `dvh` lands between pixels.
+Any computed length that is not a whole device pixel diverges, which viewport units
+reach easily — a viewport is rarely a multiple of a hundred.
 
 ### `disposeToPx()`
 
