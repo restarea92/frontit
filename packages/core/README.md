@@ -300,8 +300,8 @@ onBeforeUnmount(() => scroll?.destroy());
 ```
 
 **SSR:** `createScrollState()` outside a browser attaches nothing and reports everything as
-`false`. `toPx()` returns `undefined`. Neither throws, so there is no `typeof window` dance
-to write.
+`false`. A measurement returns `undefined`, or the `fallback` if you gave one, and `toPx()`
+returns an empty snapshot. Neither throws, so there is no `typeof window` dance to write.
 
 <br>
 
