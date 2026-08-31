@@ -194,7 +194,7 @@
           measured === undefined || scaled === undefined ? undefined : measured - scaled
 
         checkEl.innerHTML =
-          `${Object.keys(snapshot).length} units resolved · ` +
+          `${Object.keys(snapshot).filter((key) => key !== 'percent').length} units resolved · ` +
           `toPx(50, 'vh') <b>${measured?.toFixed(4) ?? '—'}</b> · ` +
           `toPx().vh × 50 <b>${scaled?.toFixed(4) ?? '—'}</b> · ` +
           `drift <b>${drift?.toFixed(4) ?? '—'}</b>`
