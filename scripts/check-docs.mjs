@@ -1,5 +1,6 @@
-// Type-checks the javascript examples in every README against the built package, so a
-// documented call that no longer exists fails the build instead of shipping.
+// Checks every README against the package it documents: the javascript examples are
+// type-checked against the build, and CDN links are checked against the current version,
+// so neither can go stale without failing the build.
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
@@ -27,11 +28,11 @@ const blocksOf = (markdown, file) =>
     line: markdown.slice(0, match.index).split('\n').length,
   }))
 
-const blocks = (
-  await Promise.all(
-    READMES.map(async (file) => blocksOf(await readFile(file, 'utf8'), file)),
-  )
-).flat()
+const docs = await Promise.all(
+  READMES.map(async (file) => ({ file, markdown: await readFile(file, 'utf8') })),
+)
+
+const blocks = docs.flatMap(({ file, markdown }) => blocksOf(markdown, file))
 
 const source = [
   PRELUDE,
@@ -65,3 +66,35 @@ try {
   rmSync(entry, { force: true })
   rmSync(directory, { recursive: true, force: true })
 }
+
+const versions = new Map(
+  await Promise.all(
+    ['core', 'frontit'].map(async (directory) => {
+      const manifest = JSON.parse(
+        await readFile(`packages/${directory}/package.json`, 'utf8'),
+      )
+      return [manifest.name, manifest.version]
+    }),
+  ),
+)
+
+// A pin like `@0.2` has to still name the version being shipped, or the link teaches an
+// older API than the README around it.
+const stale = docs.flatMap(({ file, markdown }) =>
+  [...markdown.matchAll(/cdn\.jsdelivr\.net\/npm\/(@?[\w.-]+(?:\/[\w.-]+)?)@([\d.]+)/g)]
+    .map(([, name, pin]) => ({ file, name, pin, version: versions.get(name) }))
+    .filter(
+      ({ pin, version }) =>
+        version === undefined ||
+        !(version === pin || version.startsWith(`${pin}.`)),
+    ),
+)
+
+if (stale.length > 0) {
+  for (const { file, name, pin, version } of stale) {
+    console.error(`${file}: ${name}@${pin} does not match ${version ?? 'any workspace package'}`)
+  }
+  process.exit(1)
+}
+
+console.log('CDN links point at the version being shipped')
