@@ -289,6 +289,23 @@ tr[data-differs='true'] td:not(:first-child) {
   font-variant-numeric: tabular-nums;
 }
 
+#context-box {
+  container-type: inline-size;
+  width: 240px;
+  max-width: 100%;
+  padding: 8px;
+  margin-bottom: 10px;
+  font-size: 24px;
+  font-family: Georgia, serif;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  color: var(--dim);
+}
+
+#context-box small {
+  font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
 #check b {
   font-weight: 500;
 }

@@ -64,8 +64,9 @@ scroll.subscribe((state) => {
   }
 });
 
-toPx(100, 'dvh'); // 834.31
-toPx();           // { rem: 16, ch: 8.4, lvh: 9.26, dvh: 8.34, … } every unit at once
+toPx(100, 'dvh');                      // 834.31
+toPx({ unit: 'cqw', context: panel }); // resolved inside that container
+toPx();                                // every unit at once, in pixels
 ```
 
 Zero dependencies. ESM only. Node 20+. Nothing throws where there is no DOM.

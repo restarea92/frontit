@@ -10,50 +10,40 @@ export type Unit =
   | 'dvw' | 'dvh' | 'dvi' | 'dvb' | 'dvmin' | 'dvmax'
   | 'cqw' | 'cqh' | 'cqi' | 'cqb' | 'cqmin' | 'cqmax'
 
-type Axis = 'width' | 'height'
+// A length computes the same wherever it is put: `1cqb` is the container's block size
+// whichever property holds it. So everything is measured through one neutral property,
+// and the unit alone decides what it resolves against.
+const MEASURE_PROPERTY = 'width'
 
-/**
- * The axis each unit is measured on, so a caller never has to name one. Units that
- * describe a horizontal measure go in `width` and are read back from `offsetWidth`;
- * everything else, including the units where the axis is irrelevant, goes in `height`.
- */
-const UNITS: Readonly<Record<Unit, Axis>> = {
-  px: 'height', cm: 'height', mm: 'height', q: 'height',
-  in: 'height', pt: 'height', pc: 'height',
-
-  em: 'height', ex: 'height', cap: 'height', lh: 'height',
-  ch: 'width', ic: 'width',
-
-  rem: 'height', rex: 'height', rcap: 'height', rlh: 'height',
-  rch: 'width', ric: 'width',
-
-  vh: 'height', vb: 'height', vmin: 'height', vmax: 'height',
-  vw: 'width', vi: 'width',
-
-  svh: 'height', svb: 'height', svmin: 'height', svmax: 'height',
-  svw: 'width', svi: 'width',
-
-  lvh: 'height', lvb: 'height', lvmin: 'height', lvmax: 'height',
-  lvw: 'width', lvi: 'width',
-
-  dvh: 'height', dvb: 'height', dvmin: 'height', dvmax: 'height',
-  dvw: 'width', dvi: 'width',
-
-  cqh: 'height', cqb: 'height', cqmin: 'height', cqmax: 'height',
-  cqw: 'width', cqi: 'width',
-}
-
-const UNIT_NAMES = Object.keys(UNITS) as readonly Unit[]
+const UNITS = [
+  'px', 'cm', 'mm', 'q', 'in', 'pt', 'pc',
+  'em', 'ex', 'cap', 'ch', 'ic', 'lh',
+  'rem', 'rex', 'rcap', 'rch', 'ric', 'rlh',
+  'vw', 'vh', 'vi', 'vb', 'vmin', 'vmax',
+  'svw', 'svh', 'svi', 'svb', 'svmin', 'svmax',
+  'lvw', 'lvh', 'lvi', 'lvb', 'lvmin', 'lvmax',
+  'dvw', 'dvh', 'dvi', 'dvb', 'dvmin', 'dvmax',
+  'cqw', 'cqh', 'cqi', 'cqb', 'cqmin', 'cqmax',
+] as const satisfies readonly Unit[]
 
 /** One pixel value per unit the browser resolved. A unit it rejects has no key. */
 export type PxSnapshot = Partial<Record<Unit, number>>
 
-/** Measures every unit at once. Takes no amount: multiply the result yourself. */
-export interface SnapshotOptions {
+export interface BaseOptions {
+  /**
+   * Element to measure inside. A unit is resolved against whatever the browser finds
+   * from there — an ancestor font for `em` and `ch`, a query container for `cq*` — so
+   * this is how you ask about a place other than `document.body`.
+   */
+  context?: Element | undefined
+}
+
+/** Measures every unit at once. Takes no amount: scale the result yourself. */
+export interface SnapshotOptions extends BaseOptions {
   unit?: never
 }
 
-export interface LengthOptions {
+export interface LengthOptions extends BaseOptions {
   /** How many of `unit`. Defaults to `1`. */
   value?: number | undefined
   unit: Unit
@@ -72,7 +62,26 @@ const BASE_STYLE =
 
 let cached: HTMLElement | undefined
 
-const createMeasureElement = (document: Document): HTMLElement => {
+interface Placement {
+  context: Element
+  view: Window & typeof globalThis
+  /** Whether the probe may be left in place between calls. */
+  reusable: boolean
+}
+
+const place = (context: Element | undefined): Placement | undefined => {
+  const body = typeof document === 'undefined' ? undefined : (document.body ?? undefined)
+  const target = context ?? body
+  const view = target?.ownerDocument?.defaultView
+
+  if (!target || !view) {
+    return undefined
+  }
+
+  return { context: target, view, reusable: target === body }
+}
+
+const createProbe = (document: Document): HTMLElement => {
   const element = document.createElement('div')
 
   element.setAttribute(MEASURE_ATTRIBUTE, '')
@@ -84,9 +93,8 @@ const createMeasureElement = (document: Document): HTMLElement => {
 const readPx = (
   element: HTMLElement,
   view: Window & typeof globalThis,
-  axis: Axis,
 ): number | undefined => {
-  const resolved = view.getComputedStyle(element).getPropertyValue(axis)
+  const resolved = view.getComputedStyle(element).getPropertyValue(MEASURE_PROPERTY)
 
   // A property that declines to resolve hands the value back unchanged, which
   // `parseFloat` would read as a bare number.
@@ -100,98 +108,109 @@ const readPx = (
 }
 
 const resolveLength = (options: LengthOptions): number | undefined => {
-  const body = typeof document === 'undefined' ? undefined : (document.body ?? undefined)
-  const view = body?.ownerDocument.defaultView
+  const placement = place(options.context)
 
-  if (!body || !view) {
+  if (!placement) {
     return options.fallback
   }
 
-  if (!cached?.isConnected) {
-    // Reused because appending and removing one per call forces two reflows, and this
-    // is measured repeatedly — on every scroll or resize.
-    cached = createMeasureElement(body.ownerDocument)
-    body.append(cached)
-  }
-
-  const axis = UNITS[options.unit]
+  const { context, view, reusable } = placement
   const value = `${options.value ?? 1}${options.unit}`
 
-  if (!view.CSS.supports(axis, value)) {
+  if (!view.CSS.supports(MEASURE_PROPERTY, value)) {
     return options.fallback
   }
 
-  cached.style.setProperty(axis, value)
+  let probe = reusable ? cached : undefined
+
+  if (!probe?.isConnected) {
+    // The default probe is reused because appending and removing one per call forces two
+    // reflows, and it is measured repeatedly. A caller's own element never keeps one:
+    // a lingering child changes `:empty`, sibling selectors and nth-child counts on a
+    // subtree we do not own.
+    probe = createProbe(context.ownerDocument)
+    context.append(probe)
+
+    if (reusable) {
+      cached = probe
+    }
+  }
+
+  probe.style.setProperty(MEASURE_PROPERTY, value)
 
   try {
-    if (options.precision === 'rendered') {
-      return axis === 'width' ? cached.offsetWidth : cached.offsetHeight
-    }
-
-    return readPx(cached, view, axis) ?? options.fallback
+    return options.precision === 'rendered'
+      ? probe.offsetWidth
+      : (readPx(probe, view) ?? options.fallback)
   } finally {
-    // The element outlives the call, so anything left here would reach the next one.
-    cached.style.cssText = BASE_STYLE
+    if (reusable) {
+      // The probe outlives the call, so anything left here would reach the next one.
+      probe.style.cssText = BASE_STYLE
+    } else {
+      probe.remove()
+    }
   }
 }
 
-const resolveSnapshot = (): PxSnapshot => {
-  const body = typeof document === 'undefined' ? undefined : (document.body ?? undefined)
-  const view = body?.ownerDocument.defaultView
+const resolveSnapshot = (options: SnapshotOptions): PxSnapshot => {
+  const placement = place(options.context)
 
-  if (!body || !view) {
+  if (!placement) {
     return {}
   }
 
-  const fragment = body.ownerDocument.createDocumentFragment()
-  const pending: [Unit, HTMLElement, Axis][] = []
+  const { context, view } = placement
+  const fragment = context.ownerDocument.createDocumentFragment()
+  const pending: [Unit, HTMLElement][] = []
 
-  for (const unit of UNIT_NAMES) {
-    const axis = UNITS[unit]
+  for (const unit of UNITS) {
     const value = `1${unit}`
 
-    if (!view.CSS.supports(axis, value)) {
+    if (!view.CSS.supports(MEASURE_PROPERTY, value)) {
       continue
     }
 
-    const element = createMeasureElement(body.ownerDocument)
+    const probe = createProbe(context.ownerDocument)
 
-    element.style.setProperty(axis, value)
-    fragment.append(element)
-    pending.push([unit, element, axis])
+    probe.style.setProperty(MEASURE_PROPERTY, value)
+    fragment.append(probe)
+    pending.push([unit, probe])
   }
 
   // One insertion then one read pass. Writing and reading per unit would force a
   // reflow for every one of them.
-  body.append(fragment)
+  context.append(fragment)
 
   const snapshot: PxSnapshot = {}
 
-  for (const [unit, element, axis] of pending) {
-    const px = readPx(element, view, axis)
+  for (const [unit, probe] of pending) {
+    const px = readPx(probe, view)
 
     if (px !== undefined) {
       snapshot[unit] = px
     }
   }
 
-  for (const [, element] of pending) {
-    element.remove()
+  for (const [, probe] of pending) {
+    probe.remove()
   }
 
   return snapshot
 }
 
 /**
- * Resolves a CSS unit to pixels by measuring it on a hidden element.
+ * Resolves a CSS length unit to pixels by measuring it on a hidden element.
  *
  * Answers what the platform offers no way to query directly — `1lvh`, `10ch`,
  * `1cqw` — and returns `undefined` where there is no DOM or the browser declines
  * the unit, so a fallback chain reads as `toPx('lvh') ?? toPx('vh')`.
  *
- * Called with no unit it measures every unit at once. That snapshot is `computed`
- * only: rounding happens at the final size, so a rounded single unit does not
- * multiply.
+ * `context` decides where the question is asked. The probe is placed inside it, so
+ * the browser resolves the unit against whatever it finds from there.
+ *
+ * Called with no unit it measures every unit at once. That snapshot is a survey,
+ * not a basis for arithmetic: computed lengths are quantised, so scaling one up
+ * drifts from measuring that size directly.
  */
 export function toPx(): PxSnapshot
 export function toPx(options: SnapshotOptions): PxSnapshot
@@ -204,7 +223,7 @@ export function toPx(
   second?: Unit,
 ): number | undefined | PxSnapshot {
   if (first === undefined) {
-    return resolveSnapshot()
+    return resolveSnapshot({})
   }
 
   if (typeof first === 'string') {
@@ -217,7 +236,7 @@ export function toPx(
       : resolveLength({ value: first, unit: second })
   }
 
-  return first.unit === undefined ? resolveSnapshot() : resolveLength(first)
+  return first.unit === undefined ? resolveSnapshot(first) : resolveLength(first)
 }
 
 /** Removes every measurement element created by {@link toPx}. Intended for test teardown. */

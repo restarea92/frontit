@@ -28,6 +28,16 @@ test('accepts every option outside a browser without throwing', () => {
   assert.equal(toPx({ value: 10, unit: 'ch', precision: 'computed', fallback: 16 }), 16)
 })
 
+// An element from a document with no window — one parsed by DOMParser, say — reaches
+// the same path a missing DOM does.
+test('accepts a context with no window without throwing', () => {
+  const detached = { ownerDocument: { defaultView: null } }
+
+  assert.equal(toPx({ unit: 'cqw', context: detached }), undefined)
+  assert.equal(toPx({ unit: 'cqw', context: detached, fallback: 0 }), 0)
+  assert.deepEqual(toPx({ context: detached }), {})
+})
+
 test('disposing is safe outside a browser', () => {
   assert.doesNotThrow(() => disposeToPx())
 })

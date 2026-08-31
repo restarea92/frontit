@@ -38,8 +38,9 @@ scroll.subscribe((state) => {
   }
 });
 
-toPx(100, 'dvh'); // 834.31
-toPx();           // every unit this browser resolves, in pixels
+toPx(100, 'dvh');                      // 834.31
+toPx({ unit: 'cqw', context: panel }); // resolved inside that container
+toPx();                                // every unit this browser resolves, in pixels
 ```
 
 Zero dependencies. ESM only. Node 20+. Nothing throws where there is no DOM.
@@ -55,7 +56,7 @@ about which package a tool lives in.
 | Export | What it does |
 | :--- | :--- |
 | `createScrollState` | Tracks touching, scrolling, touch-scrolling and momentum as four separate states — because they genuinely differ. |
-| `toPx` | Resolves a CSS unit to pixels — `lvh`, `svh`, `dvh`, `ch`, `cqw` — or every unit at once. |
+| `toPx` | Resolves a CSS length unit to pixels — `lvh`, `ch`, `cqw` — anywhere in the page, or every unit at once. |
 | `disposeToPx` | Clears the measurement elements. Test teardown. |
 
 ## 📚 Documentation

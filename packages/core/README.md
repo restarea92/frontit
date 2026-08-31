@@ -114,7 +114,7 @@ import { toPx } from '@frontit/core';
 
 toPx('lvh');                      // 9.26   — one unit
 toPx(100, 'dvh');                 // 834.31
-toPx({ value: 10, unit: 'ch' });  // 84
+toPx({ value: 10, unit: 'ch', context: el }); // in that element's font
 toPx();                           // every unit at once, see below
 ```
 
@@ -131,18 +131,40 @@ you write most.
 | `toPx()` | Every unit, one of each. |
 | `toPx('vh')` | One `vh`, in pixels. |
 | `toPx(100, 'vh')` | A hundred of them. |
-| `toPx({ value, unit, precision, fallback })` | The same, spelled out. |
+| `toPx({ value, unit, context, precision, fallback })` | The same, spelled out. |
+| `toPx({ context })` | Every unit, measured inside that element. |
 
 | Option | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `value` | `number` | `1` | How many of `unit`. |
-| `unit` | `Unit` | — | Any CSS unit, spelled as in CSS. Omit it and you get the snapshot. |
+| `unit` | `Unit` | — | Any CSS length unit, spelled as in CSS. Omit it and you get the snapshot. |
+| `context` | `Element` | `document.body` | Where to ask. See below. |
 | `precision` | `'computed' \| 'rendered'` | `'computed'` | `computed` gives the subpixel CSS value. `rendered` rounds to an integer, closer to what the browser paints. |
 | `fallback` | `number` | — | Returned when measurement is impossible. Supplying it **narrows the return type to `number`**. |
 
-You pass a unit, not a string of CSS, so nothing has to be parsed — and each unit already
-knows which axis it belongs on. `vh` is measured as a height, `vw` and `ch` as widths, and
-`rendered` rounds on that same axis.
+You pass a unit rather than a string of CSS, so nothing has to be parsed. A length also
+computes the same wherever it is put — `1cqb` is the container's block size whichever
+property holds it — so every unit is measured through one property, and the unit alone
+decides what it resolves against.
+
+### `context` — where the question is asked
+
+`toPx` puts a hidden probe inside `context` and lets the browser resolve the unit from
+there. It does not decide which units care:
+
+```javascript
+toPx('cqw');                            // 19.19 — nothing above body is a query
+                                        //         container, so CSS uses the viewport
+toPx({ unit: 'cqw', context: panel });  //  2.40 — panel is one
+toPx({ unit: 'ch', context: panel });   // panel's font
+toPx({ unit: 'vh', context: panel });   // the same as anywhere: vh is the viewport
+
+toPx({ context: panel });               // the whole snapshot, from there
+```
+
+`document.body` is the default and its probe is kept between calls. A probe is never left
+inside an element you passed — a lingering child would change `:empty`, sibling selectors
+and `nth-child` counts on a subtree that isn't ours.
 
 ### `toPx()` — the whole table
 
@@ -200,18 +222,15 @@ reach easily — a viewport is rarely a multiple of a hundred.
 
 Removes every measurement element. Intended for test teardown; you won't need it in an app.
 
-### Not yet: `%` and a measuring context
-
-Both are coming and neither will change the calls above.
+### Not yet: `%`
 
 A percentage is not a unit — it is a token every property resolves against its own basis.
 `font-size: 50%` is half the parent's font size, `height: 50%` is half the containing
-block, and `padding-top: 50%` is half its **width**. So a percentage needs a property and
-an element to resolve against, and it will take them as `toPx({ value, unit: '%',
-property, context })`.
+block, and `padding-top: 50%` is half its **width**. So a percentage needs a property as
+well as a context, and it will take one as `toPx({ value, unit: '%', property, context })`.
 
-`ch` and `em` currently resolve against `document.body`. Naming another element is the
-same addition, one field further along.
+That is the only thing `context` alone cannot answer, and it is why `%` is the one CSS
+value this function does not accept.
 
 
 ## ⚛️ Framework integration

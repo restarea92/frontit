@@ -40,6 +40,24 @@
       <div id="snapshot"></div>
       <p id="check"></p>
 
+      <h2>context</h2>
+      <p>
+        The probe goes wherever you point it, so the browser answers from there. The box
+        below is a query container with its own font &mdash; units that depend on either
+        move, and the rest do not.
+      </p>
+      <div id="context-box"><small>container-type: inline-size · 240px · 24px Georgia</small></div>
+      <table>
+        <thead>
+          <tr>
+            <th>unit</th>
+            <th>body</th>
+            <th>box</th>
+          </tr>
+        </thead>
+        <tbody id="context"></tbody>
+      </table>
+
       <div class="actions">
         <button id="refresh" type="button">remeasure</button>
         <button id="copy" type="button">copy report</button>
@@ -54,8 +72,7 @@
       import { toPx } from './frontit/index.js'
       import { environment, flash, header, renderEnvironment, wireCopy } from './shared.js'
 
-      // Viewport units are the ones that move, and vw confirms a width unit is measured
-      // and rounded on the width axis.
+      // The viewport families are the ones that move when the viewport does.
       const LIVE = [
         { value: 100, unit: 'vh' },
         { value: 100, unit: 'svh' },
@@ -64,9 +81,16 @@
         { value: 100, unit: 'vw' },
       ]
 
+      // cq* resolve against the nearest query container and em/ch against the inherited
+      // font, so these differ inside the box. vh does not, and that is the point: the
+      // library places a probe, the browser decides what the unit depends on.
+      const CONTEXTUAL = ['cqw', 'cqi', 'cqh', 'em', 'ch', 'lh', 'vh']
+
       const liveEl = document.getElementById('live')
       const snapshotEl = document.getElementById('snapshot')
       const checkEl = document.getElementById('check')
+      const contextEl = document.getElementById('context')
+      const boxEl = document.getElementById('context-box')
       const fallbackEl = document.getElementById('fallback')
 
       const liveEls = new Map(
@@ -118,6 +142,26 @@
           `drift <b>${drift?.toFixed(4) ?? '—'}</b>`
       }
 
+      const contextRows = new Map(
+        CONTEXTUAL.map((unit) => {
+          const row = document.createElement('tr')
+          row.innerHTML = `<td>${unit}</td><td>&mdash;</td><td>&mdash;</td>`
+          contextEl.append(row)
+          return [unit, row]
+        }),
+      )
+
+      const renderContext = () => {
+        for (const [unit, row] of contextRows) {
+          const body = toPx(unit)
+          const box = toPx({ unit, context: boxEl })
+
+          row.cells[1].textContent = body === undefined ? 'unsupported' : body.toFixed(2)
+          row.cells[2].textContent = box === undefined ? 'unsupported' : box.toFixed(2)
+          row.dataset.differs = String(body !== box)
+        }
+      }
+
       let queued = false
 
       const scheduleLive = () => {
@@ -135,10 +179,14 @@
       // The snapshot builds an element per unit, so it is not something to run on every
       // scroll frame. It only changes once the viewport settles anyway.
       addEventListener('scroll', scheduleLive, { passive: true })
-      addEventListener('scrollend', renderSnapshot)
+      addEventListener('scrollend', () => {
+        renderSnapshot()
+        renderContext()
+      })
       addEventListener('resize', () => {
         scheduleLive()
         renderSnapshot()
+        renderContext()
       })
 
       const env = environment()
@@ -163,17 +211,27 @@
             .join('\n'),
           '',
           checkEl.textContent,
+          '',
+          'context (body vs query container)',
+          [...contextRows]
+            .map(
+              ([unit, row]) =>
+                `  ${unit.padEnd(6)} body ${row.cells[1].textContent.padStart(10)}   box ${row.cells[2].textContent.padStart(10)}`,
+            )
+            .join('\n'),
         ].join('\n'),
       )
 
       document.getElementById('refresh').addEventListener('click', (event) => {
         renderLive()
         renderSnapshot()
+        renderContext()
         flash(event.currentTarget, 'measured')
       })
 
       renderLive()
       renderSnapshot()
+      renderContext()
     </script>
   </body>
 </html>
