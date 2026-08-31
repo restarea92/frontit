@@ -38,6 +38,15 @@ test('accepts a context with no window without throwing', () => {
   assert.deepEqual(toPx({ context: detached }), {})
 })
 
+// TypeScript rejects these, plain JavaScript does not. `CSS.supports` would accept
+// `1%` and measure it against the initial containing block.
+test('refuses a unit it does not know', () => {
+  assert.equal(toPx({ unit: '%' }), undefined)
+  assert.equal(toPx({ unit: '%', fallback: 0 }), 0)
+  assert.equal(toPx({ unit: 'fr' }), undefined)
+  assert.equal(toPx('%'), undefined)
+})
+
 test('disposing is safe outside a browser', () => {
   assert.doesNotThrow(() => disposeToPx())
 })

@@ -26,6 +26,8 @@ const UNITS = [
   'cqw', 'cqh', 'cqi', 'cqb', 'cqmin', 'cqmax',
 ] as const satisfies readonly Unit[]
 
+const KNOWN = new Set<string>(UNITS)
+
 /** One pixel value per unit the browser resolved. A unit it rejects has no key. */
 export type PxSnapshot = Partial<Record<Unit, number>>
 
@@ -117,7 +119,10 @@ const resolveLength = (options: LengthOptions): number | undefined => {
   const { context, view, reusable } = placement
   const value = `${options.value ?? 1}${options.unit}`
 
-  if (!view.CSS.supports(MEASURE_PROPERTY, value)) {
+  // `CSS.supports` would accept `1%`, and an absolutely positioned probe resolves a
+  // percentage against the initial containing block rather than the context — a number,
+  // measured from the wrong box. Only units this function knows how to place get through.
+  if (!KNOWN.has(options.unit) || !view.CSS.supports(MEASURE_PROPERTY, value)) {
     return options.fallback
   }
 
