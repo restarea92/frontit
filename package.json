@@ -1,16 +1,19 @@
 {
   "name": "frontit-workspace",
   "private": true,
-  "version": "0.1.0",
   "type": "module",
   "packageManager": "pnpm@11.10.0",
   "scripts": {
     "build": "pnpm --filter @frontit/core build && pnpm --filter frontit build",
+    "changeset": "changeset",
     "demo:build": "pnpm build && rm -rf demo/frontit && cp -r packages/core/dist demo/frontit",
+    "release:status": "changeset status",
+    "release:version": "changeset version",
     "test": "pnpm build && node --test packages/core/test/*.test.mjs",
     "typecheck": "pnpm --recursive --if-present run typecheck"
   },
   "devDependencies": {
+    "@changesets/cli": "^3.0.1",
     "typescript": "^5.9.2"
   },
   "engines": {
