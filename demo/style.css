@@ -32,13 +32,53 @@ main {
   padding: 12px;
 }
 
+/* Everything above is sized for a phone. On a desktop that reads as fine print. */
 @media (min-width: 700px) {
   body {
-    font-size: 14px;
+    font-size: 15px;
   }
 
   main {
     padding: 24px 12px 64px;
+  }
+
+  h1 {
+    font-size: 19px;
+  }
+
+  h2 {
+    font-size: 14px;
+  }
+
+  h3,
+  p,
+  nav a,
+  .state span,
+  .actions button,
+  #fallback {
+    font-size: 13px;
+  }
+
+  #env,
+  summary,
+  .log,
+  pre,
+  #snapshot div,
+  #percent div {
+    font-size: 12.5px;
+  }
+
+  #snapshot .group {
+    font-size: 11px;
+  }
+
+  #snapshot,
+  #percent {
+    grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  }
+
+  .log {
+    height: 230px;
   }
 }
 
@@ -93,7 +133,8 @@ table {
 
 @media (min-width: 700px) {
   table {
-    font-size: 12px;
+    max-width: 520px;
+    font-size: 13px;
   }
 }
 
