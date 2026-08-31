@@ -190,8 +190,10 @@ carries rounding that grows with the multiplier:
 
 ```javascript
 // on a 911px viewport, where 1vh is exactly 9.11
-toPx().vh;         // 9.109375  — the nearest 1/64
-toPx().vh * 50;    // 455.46875
+const vh = toPx().vh ?? 0;
+
+vh;                // 9.109375  — the nearest 1/64
+vh * 50;           // 455.46875
 toPx(50, 'vh');    // 455.5     — measured at that size, so it lands exactly
 ```
 

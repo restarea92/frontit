@@ -6,10 +6,11 @@
   "scripts": {
     "build": "pnpm --filter @frontit/core build && pnpm --filter frontit build",
     "changeset": "changeset",
+    "check:docs": "node scripts/check-docs.mjs",
     "demo:build": "pnpm build && rm -rf demo/frontit && cp -r packages/core/dist demo/frontit",
     "release:status": "changeset status",
     "release:version": "changeset version",
-    "test": "pnpm build && node --test packages/core/test/*.test.mjs",
+    "test": "pnpm build && node --test packages/core/test/*.test.mjs && pnpm check:docs",
     "typecheck": "pnpm --recursive --if-present run typecheck"
   },
   "devDependencies": {
