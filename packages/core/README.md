@@ -157,9 +157,21 @@ toPx();
 'lvh' in toPx();  // feature detection, with the value already measured
 ```
 
-No amount, because multiplying is yours to do and units are linear — but only in computed
-space, which is why the snapshot has no `precision`. Rounding happens once at the final
-size: `1vh` rendered as `8` times fifty is `400`, while `50vh` rendered is `417`.
+No amount: the snapshot is a survey, and scaling one of its values is yours to do.
+
+Two things to know before you scale one. It is `computed` only, because rounding happens
+once at the final size — `1vh` rendered as `8` times fifty is `400`, while `50vh` rendered
+is `417`. And browsers quantise computed lengths, typically to 1/64px, so a single unit
+carries rounding that grows with the multiplier:
+
+```javascript
+// on a 911px viewport, where 1vh is exactly 9.11
+toPx().vh;         // 9.109375  — the nearest 1/64
+toPx().vh * 50;    // 455.46875
+toPx(50, 'vh');    // 455.5     — measured at that size, so it lands exactly
+```
+
+Scale the snapshot for a survey. Pass the amount when the number goes into a layout.
 
 ### Why `undefined` and not `0`
 

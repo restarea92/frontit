@@ -33,7 +33,9 @@
       <h2>toPx()</h2>
       <p>
         One of every unit this browser resolves. A unit it rejects has no entry, so this
-        doubles as a support map.
+        doubles as a support map. Browsers quantise computed lengths, so scaling one of
+        these up drifts from measuring that size directly &mdash; the line below the grid
+        shows by how much.
       </p>
       <div id="snapshot"></div>
       <p id="check"></p>
@@ -46,9 +48,6 @@
 
       <h2>environment</h2>
       <div id="env"></div>
-
-      <div class="filler">scroll me to move the chrome</div>
-      <div class="filler">and back up</div>
     </main>
 
     <script type="module">
@@ -105,18 +104,18 @@
           }),
         )
 
-        // The snapshot is one of each and multiplying is the caller's job, so the two
-        // have to agree. They only can in computed space.
-        const single = toPx(50, 'vh')
+        // getComputedStyle quantises lengths, so a single unit carries rounding that
+        // grows with whatever you multiply it by. Measuring the size directly does not.
+        const measured = toPx(50, 'vh')
         const scaled = snapshot.vh === undefined ? undefined : snapshot.vh * 50
+        const drift =
+          measured === undefined || scaled === undefined ? undefined : measured - scaled
 
-        checkEl.dataset.ok = String(
-          single !== undefined && scaled !== undefined && Math.abs(single - scaled) < 0.01,
-        )
         checkEl.innerHTML =
-          `toPx(50, 'vh') <b>${single?.toFixed(2) ?? '—'}</b>` +
-          ` · toPx().vh × 50 <b>${scaled?.toFixed(2) ?? '—'}</b>` +
-          ` · ${Object.keys(snapshot).length} units resolved`
+          `${Object.keys(snapshot).length} units resolved · ` +
+          `toPx(50, 'vh') <b>${measured?.toFixed(4) ?? '—'}</b> · ` +
+          `toPx().vh × 50 <b>${scaled?.toFixed(4) ?? '—'}</b> · ` +
+          `drift <b>${drift?.toFixed(4) ?? '—'}</b>`
       }
 
       let queued = false
