@@ -1,5 +1,25 @@
 # @frontit/core
 
+## 0.2.0
+
+### Minor Changes
+
+- Added `toPx()`, which measures every unit at once and returns one pixel value each. A unit the browser rejects has no key, so the result also answers `'lvh' in toPx()`. Computed only, and a survey rather than a basis for arithmetic: browsers quantise computed lengths, so scaling one unit up drifts from measuring that size directly.
+
+- Added the `context` option: `toPx({ unit: 'cqw', context: panel })` places the probe inside that element, so the browser resolves the unit from there. This is the only way to reach a query container or a font other than the body's — `cq*` measured from the body has no container above it and falls back to the viewport. `toPx({ context })` takes the whole snapshot from that element.
+
+- Percentages take the property they resolve against: `toPx({ value: 50, unit: '%', property: 'width', context: panel })`. A percentage is not a unit — `fontSize` is a share of the parent's font, `height` of the containing block's height, `paddingBlock` of its **width** — so the property is required and no call quietly picks a basis. `toPx()` reports them under `percent`, one value per property. Previously `calc(100% - 2rem)` passed `CSS.supports` and then resolved against the viewport rather than any element the caller had in mind.
+
+- `toPx` now takes an amount and a unit rather than a CSS string: `toPx(100, 'dvh')`, `toPx('lvh')`, or `toPx({ value, unit, precision, fallback })`. Nothing has to be parsed, so `calc()` and `var()` are no longer accepted — units are linear, so the arithmetic is the caller's.
+
+### Patch Changes
+
+- A unit outside the known list is refused before measuring. TypeScript already rejected them, but `CSS.supports` accepts `1%`, so plain JavaScript could measure a percentage against the initial containing block and get a number back.
+
+- The cached measurement element is reset after each call, so a measured value cannot follow the next measurement into a different unit.
+
+- Measurement no longer returns a number for a value the browser declined to resolve. Properties that hand a percentage back unchanged were being read as the bare number.
+
 ## 0.1.0
 
 ### Minor Changes

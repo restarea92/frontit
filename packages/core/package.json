@@ -1,6 +1,6 @@
 {
   "name": "@frontit/core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Low-level browser primitives and utilities for frontend development.",
   "type": "module",
   "sideEffects": false,
