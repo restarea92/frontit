@@ -42,16 +42,21 @@ export const PERCENT_PROPERTIES = [
 
 export type PercentProperty = (typeof PERCENT_PROPERTIES)[number] | (string & {})
 
-export type PercentSnapshot = Partial<Record<(typeof PERCENT_PROPERTIES)[number], number>>
+export type PercentSnapshot = Record<
+  (typeof PERCENT_PROPERTIES)[number],
+  number | undefined
+>
 
 /**
  * One pixel value per unit the browser resolved. A unit it rejects has no key.
  *
  * `percent` is nested because a percentage is not a unit: every property resolves it
- * against its own basis, so there is one value per property rather than one value.
+ * against its own basis, so there is one value per property rather than one value. Its
+ * keys are ours rather than the browser's, so they are always there and the value goes
+ * `undefined`; only the unit list reports absence by leaving a key out.
  */
 export type PxSnapshot = Partial<Record<Unit, number>> & {
-  percent?: PercentSnapshot
+  percent: PercentSnapshot
 }
 
 export interface BaseOptions {
@@ -295,19 +300,23 @@ const resolvePercent = (options: PercentOptions): number | undefined => {
   )
 }
 
+const emptyPercent = (): PercentSnapshot => ({
+  width: undefined,
+  height: undefined,
+  fontSize: undefined,
+  lineHeight: undefined,
+  paddingBlock: undefined,
+})
+
 const resolvePercentSnapshot = (
   context: Element,
   view: Window & typeof globalThis,
-): PercentSnapshot | undefined =>
-  withContainingBlock(context, view, undefined, () => {
-    const percent: PercentSnapshot = {}
+): PercentSnapshot =>
+  withContainingBlock(context, view, emptyPercent(), () => {
+    const percent = emptyPercent()
 
     for (const property of PERCENT_PROPERTIES) {
-      const px = measurePercent(context, view, '1%', kebab(property))
-
-      if (px !== undefined) {
-        percent[property] = px
-      }
+      percent[property] = measurePercent(context, view, '1%', kebab(property))
     }
 
     return percent
@@ -317,7 +326,7 @@ const resolveSnapshot = (options: SnapshotOptions): PxSnapshot => {
   const placement = place(options.context)
 
   if (!placement) {
-    return {}
+    return { percent: emptyPercent() }
   }
 
   const { context, view } = placement
@@ -342,7 +351,7 @@ const resolveSnapshot = (options: SnapshotOptions): PxSnapshot => {
   // reflow for every one of them.
   context.append(fragment)
 
-  const snapshot: PxSnapshot = {}
+  const snapshot: PxSnapshot = { percent: emptyPercent() }
 
   for (const [unit, probe] of pending) {
     const px = readPx(probe, view)
@@ -356,11 +365,7 @@ const resolveSnapshot = (options: SnapshotOptions): PxSnapshot => {
     probe.remove()
   }
 
-  const percent = resolvePercentSnapshot(context, view)
-
-  if (percent) {
-    snapshot.percent = percent
-  }
+  snapshot.percent = resolvePercentSnapshot(context, view)
 
   return snapshot
 }

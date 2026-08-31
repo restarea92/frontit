@@ -253,6 +253,10 @@ toPx().percent;
 // { width: 10.24, height: 7.68, fontSize: 0.16, lineHeight: 0.19, paddingBlock: 10.24 }
 ```
 
+These keys are ours rather than the browser's, so they are always there and it is the
+value that goes `undefined` — no `?.` needed. A unit key is absent instead, because
+whether a unit exists is the browser's answer and absence is how it says no.
+
 `paddingBlock` matching `width` rather than `height` is not a mistake.
 
 While a percentage is measured, `context` is given `position: relative` if it did not have
@@ -303,7 +307,9 @@ onBeforeUnmount(() => scroll?.destroy());
 
 **SSR:** `createScrollState()` outside a browser attaches nothing and reports everything as
 `false`. A measurement returns `undefined`, or the `fallback` if you gave one, and `toPx()`
-returns an empty snapshot. Neither throws, so there is no `typeof window` dance to write.
+returns a snapshot with no units and every `percent` value `undefined` — so
+`toPx().percent.width` is safe to reach for on a server. Neither throws, so there is no
+`typeof window` dance to write.
 
 <br>
 

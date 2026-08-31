@@ -18,9 +18,21 @@ test('returns the fallback when measurement is impossible', () => {
   assert.equal(toPx({ unit: 'lvh', fallback: -1 }), -1)
 })
 
-test('returns an empty snapshot outside a browser', () => {
-  assert.deepEqual(toPx(), {})
-  assert.deepEqual(toPx({}), {})
+test('keeps the snapshot shape outside a browser', () => {
+  // No unit resolved, so no unit key. `percent` keys are ours rather than the
+  // browser's, so they stay and the value is what goes undefined.
+  const snapshot = toPx()
+
+  assert.deepEqual(Object.keys(snapshot), ['percent'])
+  assert.equal(snapshot.percent.width, undefined)
+  assert.deepEqual(Object.keys(snapshot.percent).sort(), [
+    'fontSize',
+    'height',
+    'lineHeight',
+    'paddingBlock',
+    'width',
+  ])
+  assert.deepEqual(toPx({}), snapshot)
 })
 
 test('accepts every option outside a browser without throwing', () => {
@@ -35,7 +47,7 @@ test('accepts a context with no window without throwing', () => {
 
   assert.equal(toPx({ unit: 'cqw', context: detached }), undefined)
   assert.equal(toPx({ unit: 'cqw', context: detached, fallback: 0 }), 0)
-  assert.deepEqual(toPx({ context: detached }), {})
+  assert.deepEqual(Object.keys(toPx({ context: detached })), ['percent'])
 })
 
 // TypeScript rejects these, plain JavaScript does not. `CSS.supports` would accept
