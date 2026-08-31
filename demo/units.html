@@ -47,6 +47,11 @@
       </p>
       <div id="percent"></div>
 
+      <details>
+        <summary>the object toPx() returned</summary>
+        <pre id="json"></pre>
+      </details>
+
       <h2>context</h2>
       <p>
         The probe goes wherever you point it, so the browser answers from there. The box
@@ -110,6 +115,7 @@
       const snapshotEl = document.getElementById('snapshot')
       const checkEl = document.getElementById('check')
       const percentEl = document.getElementById('percent')
+      const jsonEl = document.getElementById('json')
       const contextEl = document.getElementById('context')
       const boxEl = document.getElementById('context-box')
       const fallbackEl = document.getElementById('fallback')
@@ -135,6 +141,14 @@
           )
         }
       }
+
+      const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;' }
+
+      const highlight = (value) =>
+        JSON.stringify(value, null, 2)
+          .replace(/[&<>]/g, (character) => ESCAPES[character])
+          .replace(/"([^"]+)":/g, '<b>"$1"</b>:')
+          .replace(/: (-?[\d.]+)/g, ': <i>$1</i>')
 
       let snapshot = {}
 
@@ -169,6 +183,8 @@
             cell(property, px),
           ),
         )
+
+        jsonEl.innerHTML = highlight(snapshot)
 
         // getComputedStyle quantises lengths, so a single unit carries rounding that
         // grows with whatever you multiply it by. Measuring the size directly does not.

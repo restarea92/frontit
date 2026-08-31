@@ -346,6 +346,49 @@ tr[data-differs='true'] td:not(:first-child) {
   font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+details {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0f1318;
+}
+
+summary {
+  padding: 8px 10px;
+  font-size: 11px;
+  color: var(--dim);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+summary::marker {
+  color: var(--line);
+}
+
+details[open] summary {
+  border-bottom: 1px solid var(--line);
+}
+
+pre {
+  margin: 0;
+  padding: 10px;
+  overflow-x: auto;
+  font-size: 11px;
+  line-height: 1.45;
+  tab-size: 2;
+}
+
+pre b {
+  color: var(--dim);
+  font-weight: 400;
+}
+
+pre i {
+  color: var(--accent);
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+
 #check b {
   font-weight: 500;
 }
