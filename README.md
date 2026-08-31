@@ -70,6 +70,14 @@ toPx({ value: 50, unit: '%', property: 'width', context: panel });
 toPx();                                // every unit at once, in pixels
 ```
 
+Or no build step at all — jsDelivr serves the package as ESM straight from npm:
+
+```html
+<script type="module">
+  import { createScrollState, toPx } from 'https://cdn.jsdelivr.net/npm/frontit@0.2/+esm';
+</script>
+```
+
 Zero dependencies. ESM only. Node 20+. Nothing throws where there is no DOM.
 
 <br>
