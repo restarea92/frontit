@@ -133,6 +133,7 @@ you write most.
 | `toPx(100, 'vh')` | A hundred of them. |
 | `toPx({ value, unit, context, precision, fallback })` | The same, spelled out. |
 | `toPx({ context })` | Every unit, measured inside that element. |
+| `toPx({ value, unit: '%', property, context })` | A percentage of that property. |
 
 | Option | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
@@ -170,7 +171,8 @@ and `nth-child` counts on a subtree that isn't ours.
 
 ```javascript
 toPx();
-// { px: 1, rem: 16, ch: 8.4, vh: 9.26, lvh: 9.26, dvh: 8.34, cqw: 4.14, … }
+// { px: 1, rem: 16, ch: 8.4, vh: 9.26, lvh: 9.26, dvh: 8.34, cqw: 4.14, …,
+//   percent: { width: 10.24, height: 7.68, fontSize: 0.16, … } }
 ```
 
 **A unit the browser rejects has no key**, so the result doubles as a support map:
@@ -222,15 +224,39 @@ reach easily — a viewport is rarely a multiple of a hundred.
 
 Removes every measurement element. Intended for test teardown; you won't need it in an app.
 
-### Not yet: `%`
+### `%` — a percentage of what?
 
-A percentage is not a unit — it is a token every property resolves against its own basis.
-`font-size: 50%` is half the parent's font size, `height: 50%` is half the containing
-block, and `padding-top: 50%` is half its **width**. So a percentage needs a property as
-well as a context, and it will take one as `toPx({ value, unit: '%', property, context })`.
+A percentage is not a unit. It is a token every property resolves against its own basis,
+so it needs the property named alongside it:
 
-That is the only thing `context` alone cannot answer, and it is why `%` is the one CSS
-value this function does not accept.
+```javascript
+toPx({ value: 50, unit: '%', property: 'width', context: panel });
+```
+
+| `50%` written on | is 50% of |
+| :--- | :--- |
+| `fontSize` | the **parent's** computed font size |
+| `lineHeight` | the element's **own** font size |
+| `width`, `paddingBlock`, `marginInline` | the containing block's **width** — vertical padding included |
+| `height` | the containing block's **height** |
+
+The property is required, so there is no call that quietly picks a basis for you. Any
+camelCased CSS property is accepted; one that hands the percentage back unresolved returns
+`undefined` like anything else.
+
+`toPx()` reports them nested, because there is a value per property rather than a value:
+
+```javascript
+toPx().percent;
+// { width: 10.24, height: 7.68, fontSize: 0.16, lineHeight: 0.19, paddingBlock: 10.24 }
+```
+
+`paddingBlock` matching `width` rather than `height` is not a mistake.
+
+While a percentage is measured, `context` is given `position: relative` if it did not have
+a position already — that is what makes it the containing block the probe resolves
+against. It is restored before returning, and `relative` with no offsets moves nothing, so
+nothing is ever painted from it.
 
 
 ## ⚛️ Framework integration

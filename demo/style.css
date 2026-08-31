@@ -261,9 +261,10 @@ tr[data-differs='true'] td:not(:first-child) {
 
 /* units.html */
 
-#snapshot {
+#snapshot,
+#percent {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(126px, 1fr));
   gap: 1px;
   background: var(--line);
   border: 1px solid var(--line);
@@ -271,7 +272,8 @@ tr[data-differs='true'] td:not(:first-child) {
   overflow: hidden;
 }
 
-#snapshot div {
+#snapshot div,
+#percent div {
   display: flex;
   justify-content: space-between;
   gap: 6px;
@@ -280,12 +282,14 @@ tr[data-differs='true'] td:not(:first-child) {
   font-size: 11px;
 }
 
-#snapshot b {
+#snapshot b,
+#percent b {
   color: var(--dim);
   font-weight: 500;
 }
 
-#snapshot span {
+#snapshot span,
+#percent span {
   font-variant-numeric: tabular-nums;
 }
 

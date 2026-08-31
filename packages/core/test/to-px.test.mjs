@@ -39,12 +39,24 @@ test('accepts a context with no window without throwing', () => {
 })
 
 // TypeScript rejects these, plain JavaScript does not. `CSS.supports` would accept
-// `1%` and measure it against the initial containing block.
+// `1%` on the measuring property and resolve it against the initial containing block.
 test('refuses a unit it does not know', () => {
-  assert.equal(toPx({ unit: '%' }), undefined)
-  assert.equal(toPx({ unit: '%', fallback: 0 }), 0)
   assert.equal(toPx({ unit: 'fr' }), undefined)
   assert.equal(toPx('%'), undefined)
+  assert.equal(toPx(50, '%'), undefined)
+})
+
+test('a percentage without a property is not a length', () => {
+  assert.equal(toPx({ unit: '%' }), undefined)
+  assert.equal(toPx({ unit: '%', fallback: 0 }), 0)
+  assert.doesNotThrow(() =>
+    toPx({ unit: '%', context: { ownerDocument: { defaultView: {} } } }),
+  )
+})
+
+test('takes a percentage with its property outside a browser', () => {
+  assert.equal(toPx({ value: 50, unit: '%', property: 'width' }), undefined)
+  assert.equal(toPx({ unit: '%', property: 'paddingBlock', fallback: -1 }), -1)
 })
 
 test('disposing is safe outside a browser', () => {

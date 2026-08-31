@@ -40,6 +40,13 @@
       <div id="snapshot"></div>
       <p id="check"></p>
 
+      <h2>toPx().percent</h2>
+      <p>
+        A percentage is not a unit, so there is one value per property rather than one
+        value. Note which of these matches which.
+      </p>
+      <div id="percent"></div>
+
       <h2>context</h2>
       <p>
         The probe goes wherever you point it, so the browser answers from there. The box
@@ -89,6 +96,7 @@
       const liveEl = document.getElementById('live')
       const snapshotEl = document.getElementById('snapshot')
       const checkEl = document.getElementById('check')
+      const percentEl = document.getElementById('percent')
       const contextEl = document.getElementById('context')
       const boxEl = document.getElementById('context-box')
       const fallbackEl = document.getElementById('fallback')
@@ -120,12 +128,22 @@
       const renderSnapshot = () => {
         snapshot = toPx()
 
+        const cell = (label, px) => {
+          const el = document.createElement('div')
+          el.innerHTML = `<b>${label}</b><span>${px.toFixed(2)}</span>`
+          return el
+        }
+
         snapshotEl.replaceChildren(
-          ...Object.entries(snapshot).map(([unit, px]) => {
-            const cell = document.createElement('div')
-            cell.innerHTML = `<b>${unit}</b><span>${px.toFixed(2)}</span>`
-            return cell
-          }),
+          ...Object.entries(snapshot)
+            .filter(([unit]) => unit !== 'percent')
+            .map(([unit, px]) => cell(unit, px)),
+        )
+
+        percentEl.replaceChildren(
+          ...Object.entries(snapshot.percent ?? {}).map(([property, px]) =>
+            cell(property, px),
+          ),
         )
 
         // getComputedStyle quantises lengths, so a single unit carries rounding that
@@ -207,7 +225,13 @@
           '',
           'toPx()',
           Object.entries(snapshot)
+            .filter(([unit]) => unit !== 'percent')
             .map(([unit, px]) => `  ${unit.padEnd(7)} ${px.toFixed(4).padStart(11)}`)
+            .join('\n'),
+          '',
+          'toPx().percent',
+          Object.entries(snapshot.percent ?? {})
+            .map(([property, px]) => `  ${property.padEnd(13)} ${px.toFixed(4).padStart(11)}`)
             .join('\n'),
           '',
           checkEl.textContent,

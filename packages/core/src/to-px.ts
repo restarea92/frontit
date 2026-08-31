@@ -28,8 +28,31 @@ const UNITS = [
 
 const KNOWN = new Set<string>(UNITS)
 
-/** One pixel value per unit the browser resolved. A unit it rejects has no key. */
-export type PxSnapshot = Partial<Record<Unit, number>>
+/**
+ * CSS properties whose percentage the snapshot reports. Any other property can still be
+ * asked for by name; these are the ones worth listing.
+ */
+export const PERCENT_PROPERTIES = [
+  'width',
+  'height',
+  'fontSize',
+  'lineHeight',
+  'paddingBlock',
+] as const
+
+export type PercentProperty = (typeof PERCENT_PROPERTIES)[number] | (string & {})
+
+export type PercentSnapshot = Partial<Record<(typeof PERCENT_PROPERTIES)[number], number>>
+
+/**
+ * One pixel value per unit the browser resolved. A unit it rejects has no key.
+ *
+ * `percent` is nested because a percentage is not a unit: every property resolves it
+ * against its own basis, so there is one value per property rather than one value.
+ */
+export type PxSnapshot = Partial<Record<Unit, number>> & {
+  percent?: PercentSnapshot
+}
 
 export interface BaseOptions {
   /**
@@ -43,6 +66,20 @@ export interface BaseOptions {
 /** Measures every unit at once. Takes no amount: scale the result yourself. */
 export interface SnapshotOptions extends BaseOptions {
   unit?: never
+}
+
+export interface PercentOptions extends BaseOptions {
+  /** How many percent. Defaults to `1`. */
+  value?: number | undefined
+  unit: '%'
+  /**
+   * CSS property the percentage resolves against, camelCased. A percentage has no
+   * meaning without one: `fontSize` is a share of the parent's font, `height` of the
+   * containing block's height, and `paddingBlock` of its **width**.
+   */
+  property: PercentProperty
+  /** Returned when the value cannot be measured. Providing it narrows the return type to `number`. */
+  fallback?: number | undefined
 }
 
 export interface LengthOptions extends BaseOptions {
@@ -157,6 +194,125 @@ const resolveLength = (options: LengthOptions): number | undefined => {
   }
 }
 
+const kebab = (property: string): string =>
+  property.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)
+
+const inlineStyleOf = (element: Element): CSSStyleDeclaration | undefined => {
+  const { style } = element as Element & Partial<ElementCSSInlineStyle>
+
+  return typeof style?.setProperty === 'function' ? style : undefined
+}
+
+/**
+ * Runs `measure` with `context` as the containing block for absolutely positioned
+ * children, which is what makes a percentage resolve against it.
+ *
+ * The probe is absolutely positioned, so it would otherwise resolve percentages against
+ * the nearest positioned ancestor — rarely the element that was named. Positioning the
+ * context makes it that ancestor. It is restored before returning, and `relative` with
+ * no offsets moves nothing, so nothing is ever painted from it.
+ */
+const withContainingBlock = <T>(
+  context: Element,
+  view: Window & typeof globalThis,
+  fallback: T,
+  measure: () => T,
+): T => {
+  if (view.getComputedStyle(context).position !== 'static') {
+    return measure()
+  }
+
+  const style = inlineStyleOf(context)
+
+  if (!style) {
+    return fallback
+  }
+
+  const previous = style.getPropertyValue('position')
+
+  style.setProperty('position', 'relative')
+
+  try {
+    return measure()
+  } finally {
+    if (previous === '') {
+      style.removeProperty('position')
+    } else {
+      style.setProperty('position', previous)
+    }
+  }
+}
+
+const measurePercent = (
+  context: Element,
+  view: Window & typeof globalThis,
+  value: string,
+  property: string,
+): number | undefined => {
+  if (!view.CSS.supports(property, value)) {
+    return undefined
+  }
+
+  const probe = createProbe(context.ownerDocument)
+
+  probe.style.setProperty(property, value)
+  context.append(probe)
+
+  try {
+    const resolved = view.getComputedStyle(probe).getPropertyValue(property)
+
+    if (!resolved.endsWith('px')) {
+      return undefined
+    }
+
+    const px = Number.parseFloat(resolved)
+
+    return Number.isNaN(px) ? undefined : px
+  } finally {
+    probe.remove()
+  }
+}
+
+const resolvePercent = (options: PercentOptions): number | undefined => {
+  const placement = place(options.context)
+
+  if (!placement) {
+    return options.fallback
+  }
+
+  // A percentage has no basis without a property. TypeScript requires one; plain
+  // JavaScript does not.
+  if (typeof options.property !== 'string') {
+    return options.fallback
+  }
+
+  const { context, view } = placement
+  const value = `${options.value ?? 1}%`
+  const property = kebab(options.property)
+
+  return withContainingBlock(context, view, options.fallback, () =>
+    measurePercent(context, view, value, property) ?? options.fallback,
+  )
+}
+
+const resolvePercentSnapshot = (
+  context: Element,
+  view: Window & typeof globalThis,
+): PercentSnapshot | undefined =>
+  withContainingBlock(context, view, undefined, () => {
+    const percent: PercentSnapshot = {}
+
+    for (const property of PERCENT_PROPERTIES) {
+      const px = measurePercent(context, view, '1%', kebab(property))
+
+      if (px !== undefined) {
+        percent[property] = px
+      }
+    }
+
+    return percent
+  })
+
 const resolveSnapshot = (options: SnapshotOptions): PxSnapshot => {
   const placement = place(options.context)
 
@@ -200,6 +356,12 @@ const resolveSnapshot = (options: SnapshotOptions): PxSnapshot => {
     probe.remove()
   }
 
+  const percent = resolvePercentSnapshot(context, view)
+
+  if (percent) {
+    snapshot.percent = percent
+  }
+
   return snapshot
 }
 
@@ -213,7 +375,10 @@ const resolveSnapshot = (options: SnapshotOptions): PxSnapshot => {
  * `context` decides where the question is asked. The probe is placed inside it, so
  * the browser resolves the unit against whatever it finds from there.
  *
- * Called with no unit it measures every unit at once. That snapshot is a survey,
+ * A percentage is not a unit, so `'%'` also needs the property it resolves against:
+ * `toPx({ value: 50, unit: '%', property: 'width', context })`.
+ *
+ * Called with no unit it measures everything at once. That snapshot is a survey,
  * not a basis for arithmetic: computed lengths are quantised, so scaling one up
  * drifts from measuring that size directly.
  */
@@ -221,10 +386,12 @@ export function toPx(): PxSnapshot
 export function toPx(options: SnapshotOptions): PxSnapshot
 export function toPx(unit: Unit): number | undefined
 export function toPx(value: number, unit: Unit): number | undefined
+export function toPx(options: PercentOptions & { fallback: number }): number
+export function toPx(options: PercentOptions): number | undefined
 export function toPx(options: LengthOptions & { fallback: number }): number
 export function toPx(options: LengthOptions): number | undefined
 export function toPx(
-  first?: Unit | number | SnapshotOptions | LengthOptions,
+  first?: Unit | number | SnapshotOptions | LengthOptions | PercentOptions,
   second?: Unit,
 ): number | undefined | PxSnapshot {
   if (first === undefined) {
@@ -241,7 +408,11 @@ export function toPx(
       : resolveLength({ value: first, unit: second })
   }
 
-  return first.unit === undefined ? resolveSnapshot(first) : resolveLength(first)
+  if (first.unit === undefined) {
+    return resolveSnapshot(first)
+  }
+
+  return first.unit === '%' ? resolvePercent(first) : resolveLength(first)
 }
 
 /** Removes every measurement element created by {@link toPx}. Intended for test teardown. */

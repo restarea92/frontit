@@ -66,6 +66,7 @@ scroll.subscribe((state) => {
 
 toPx(100, 'dvh');                      // 834.31
 toPx({ unit: 'cqw', context: panel }); // resolved inside that container
+toPx({ value: 50, unit: '%', property: 'width', context: panel });
 toPx();                                // every unit at once, in pixels
 ```
 
