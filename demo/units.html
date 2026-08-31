@@ -93,6 +93,19 @@
       // library places a probe, the browser decides what the unit depends on.
       const CONTEXTUAL = ['cqw', 'cqi', 'cqh', 'em', 'ch', 'lh', 'vh']
 
+      // Presentation only: the snapshot is a flat object, but reading 49 numbers is
+      // easier when the families are visible.
+      const FAMILIES = [
+        ['absolute', ['px', 'cm', 'mm', 'q', 'in', 'pt', 'pc']],
+        ['font', ['em', 'ex', 'cap', 'ch', 'ic', 'lh']],
+        ['root font', ['rem', 'rex', 'rcap', 'rch', 'ric', 'rlh']],
+        ['viewport', ['vw', 'vh', 'vi', 'vb', 'vmin', 'vmax']],
+        ['small viewport', ['svw', 'svh', 'svi', 'svb', 'svmin', 'svmax']],
+        ['large viewport', ['lvw', 'lvh', 'lvi', 'lvb', 'lvmin', 'lvmax']],
+        ['dynamic viewport', ['dvw', 'dvh', 'dvi', 'dvb', 'dvmin', 'dvmax']],
+        ['container', ['cqw', 'cqh', 'cqi', 'cqb', 'cqmin', 'cqmax']],
+      ]
+
       const liveEl = document.getElementById('live')
       const snapshotEl = document.getElementById('snapshot')
       const checkEl = document.getElementById('check')
@@ -134,10 +147,21 @@
           return el
         }
 
+        const group = (label) => {
+          const el = document.createElement('div')
+          el.className = 'group'
+          el.textContent = label
+          return el
+        }
+
         snapshotEl.replaceChildren(
-          ...Object.entries(snapshot)
-            .filter(([unit]) => unit !== 'percent')
-            .map(([unit, px]) => cell(unit, px)),
+          ...FAMILIES.flatMap(([label, units]) => {
+            const resolved = units.filter((unit) => snapshot[unit] !== undefined)
+
+            return resolved.length === 0
+              ? []
+              : [group(label), ...resolved.map((unit) => cell(unit, snapshot[unit]))]
+          }),
         )
 
         percentEl.replaceChildren(
