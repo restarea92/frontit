@@ -40,7 +40,7 @@
     "interaction",
     "typescript"
   ],
-  "author": "Yohan Byun <restarea@me.com>",
+  "author": "restarea92 <restarea@me.com>",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
